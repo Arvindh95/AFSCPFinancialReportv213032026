@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <OutputType>Library</OutputType>
+    <RootNamespace>FinancialReport</RootNamespace>
+    <AssemblyName>FinancialReport</AssemblyName>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <FileVersion>25.201.0213</FileVersion>
+    <InformationalVersion>25.201.0213</InformationalVersion>
+    <Copyright>Copyright © 2005-2025 Acumatica, Inc. All rights reserved.</Copyright>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <WarningLevel>3</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="PX.Common">
+      <HintPath>..\..\..\..\Bin\PX.Common.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="PX.Common.Std">
+      <HintPath>..\..\..\..\Bin\PX.Common.Std.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="PX.CS.Contracts">
+      <HintPath>..\..\..\..\Bin\PX.CS.Contracts.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="PX.Data">
+      <HintPath>..\..\..\..\Bin\PX.Data.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="PX.Data.BQL.Fluent">
+      <HintPath>..\..\..\..\Bin\PX.Data.BQL.Fluent.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="PX.DbServices">
+      <HintPath>..\..\..\..\Bin\PX.DbServices.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="PX.Objects">
+      <HintPath>..\..\..\..\Bin\PX.Objects.DLL</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Configuration" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Design" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="DocumentFormat.OpenXml">
+      <Version>3.2.0</Version>
+    </PackageReference>
+    <PackageReference Include="DocumentFormat.OpenXml.Features">
+      <Version>3.2.0</Version>
+    </PackageReference>
+    <PackageReference Include="DocumentFormat.OpenXml.Framework">
+      <Version>3.2.0</Version>
+    </PackageReference>
+    <PackageReference Include="DocumentFormat.OpenXml.Linq">
+      <Version>3.2.0</Version>
+    </PackageReference>
+    <PackageReference Include="Newtonsoft.Json">
+      <Version>13.0.3</Version>
+    </PackageReference>
+    <PackageReference Include="System.Runtime.CompilerServices.Unsafe">
+      <Version>6.1.0</Version>
+    </PackageReference>
+    <PackageReference Include="System.Threading.Tasks.Extensions">
+      <Version>4.6.0</Version>
+    </PackageReference>
+  </ItemGroup>
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="copy /Y &quot;$(TargetPath)&quot; &quot;$(ProjectDir)..\..\..\..\Bin\$(TargetFileName)&quot;" />
+  </Target>
+</Project>

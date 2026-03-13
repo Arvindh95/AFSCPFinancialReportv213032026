@@ -1,0 +1,1 @@
+"C:\Program Files\Acumatica ERP\2025R2\App_Data\Projects\AFSCPFinancialReportv213032026\AFSCPFinancialReportv213032026.sln"
