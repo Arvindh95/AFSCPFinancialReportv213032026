@@ -1,5 +1,5 @@
-<%@ Page Language="C#" MasterPageFile="~/MasterPages/TabView.master" AutoEventWireup="true" ValidateRequest="false" CodeFile="FR101000.aspx.cs" Inherits="Page_FR101000" Title="Financial Report" %>
-<%@ MasterType VirtualPath="~/MasterPages/TabView.master" %>
+<%@ Page Language="C#" MasterPageFile="~/MasterPages/FormTab.master" AutoEventWireup="true" ValidateRequest="false" CodeFile="FR101000.aspx.cs" Inherits="Page_FR101000" Title="Financial Report" %>
+<%@ MasterType VirtualPath="~/MasterPages/FormTab.master" %>
 
 <asp:Content ID="cont1" ContentPlaceHolderID="phDS" runat="Server">
 	<px:PXDataSource ID="ds" runat="server" Visible="True" Width="100%"
@@ -10,8 +10,8 @@
 			<px:PXDSCallbackCommand Name="downloadReport"       CommitChanges="True" />
 			<px:PXDSCallbackCommand Name="resetStatus"          CommitChanges="True" />
 			<px:PXDSCallbackCommand Name="downloadPresentation" CommitChanges="True" />
-			<px:PXDSCallbackCommand Name="previewMarkdown"     CommitChanges="True" />
-			<px:PXDSCallbackCommand Name="generateGamma"       CommitChanges="True" />
+			<px:PXDSCallbackCommand Name="previewMarkdown"      CommitChanges="True" />
+			<px:PXDSCallbackCommand Name="generateGamma"        CommitChanges="True" />
 		</CallbackCommands>
 	</px:PXDataSource>
 </asp:Content>
@@ -36,7 +36,7 @@
 			<px:PXSelector  runat="server" ID="edLedger"         DataField="Ledger"         CommitChanges="True" />
 			<px:PXTextEdit  runat="server" ID="edStatus"         DataField="Status"         Enabled="False" />
 
-			<%-- Column 3: Presentation / Alai --%>
+			<%-- Column 3: Presentation --%>
 			<px:PXLayoutRule runat="server" ID="rl_Col3" StartColumn="True" LabelsWidth="S" ControlSize="M" />
 			<px:PXTextEdit  runat="server" ID="edPresentationTitle"       DataField="PresentationTitle" />
 			<px:PXTextEdit  runat="server" ID="edPresentationDescription" DataField="PresentationDescription" TextMode="MultiLine" Height="60px" />
@@ -44,7 +44,9 @@
 			<px:PXTextEdit  runat="server" ID="edSlideStatus"             DataField="SlideStatus" Enabled="False" />
 		</Template>
 	</px:PXFormView>
+</asp:Content>
 
+<asp:Content ID="cont3" ContentPlaceHolderID="phG" runat="Server">
 	<px:PXTab runat="server" ID="tabDetails" DataSourceID="ds" Width="100%">
 		<AutoSize Enabled="True" Container="Window" MinHeight="250" />
 		<Items>
