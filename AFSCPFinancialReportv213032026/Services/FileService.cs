@@ -125,5 +125,52 @@ namespace FinancialReport.Services
 
             return fileInfo.UID ?? Guid.Empty;
         }
+
+        /// <summary>
+        /// Saves a generated document for a Presentation Generation record and returns the FileID.
+        /// </summary>
+        public Guid SaveGeneratedDocument(string fileName, byte[] fileContent, FLRTPresentationGeneration currentRecord)
+        {
+            if (fileContent == null || fileContent.Length == 0)
+                throw new PXException(Messages.TemplateFileIsEmpty);
+
+            var fileGraph = PXGraph.CreateInstance<UploadFileMaintenance>();
+
+            var fileInfo = new PX.SM.FileInfo(fileName, null, fileContent)
+            {
+                IsPublic = true
+            };
+
+            bool saved = fileGraph.SaveFile(fileInfo);
+            if (!saved)
+            {
+                throw new PXException(Messages.UnableToSaveGeneratedFile);
+            }
+
+            if (fileInfo.UID.HasValue)
+            {
+                PXNoteAttribute.SetFileNotes(
+                    _graph.Caches[typeof(FLRTPresentationGeneration)],
+                    currentRecord,
+                    fileInfo.UID.Value
+                );
+
+                var existingLink = PXSelect<NoteDoc,
+                    Where<NoteDoc.noteID, Equal<Required<NoteDoc.noteID>>,
+                          And<NoteDoc.fileID, Equal<Required<NoteDoc.fileID>>>>>
+                    .Select(_graph, currentRecord.Noteid, fileInfo.UID.Value)
+                    .FirstOrDefault();
+
+                if (existingLink == null)
+                {
+                    PXDatabase.Insert<NoteDoc>(
+                        new PXDataFieldAssign<NoteDoc.noteID>(currentRecord.Noteid),
+                        new PXDataFieldAssign<NoteDoc.fileID>(fileInfo.UID.Value)
+                    );
+                }
+            }
+
+            return fileInfo.UID ?? Guid.Empty;
+        }
     }
 }

@@ -5,6 +5,7 @@ using PX.Objects;
 using PX.Objects.GL.FinPeriods.TableDefinition;
 using PX.Data.BQL.Fluent;
 using PX.Objects.GL.DAC;
+using FinancialReport.Helper;
 
 namespace FinancialReport
 {
@@ -190,67 +191,6 @@ namespace FinancialReport
         new[] { "File not Generated", "In Progress", "Ready to Download", "Failed" })]
     public virtual string Status { get; set; }
     public abstract class status : PX.Data.BQL.BqlString.Field<status> { }
-    #endregion
-
-    #region PresentationTitle
-    [PXDBString(500, IsUnicode = true)]
-    [PXUIField(DisplayName = "Presentation Title")]
-    public virtual string PresentationTitle { get; set; }
-    public abstract class presentationTitle : PX.Data.BQL.BqlString.Field<presentationTitle> { }
-    #endregion
-
-    #region GammaTemplateId
-    [PXDBString(100, IsUnicode = true)]
-    [PXUIField(DisplayName = "Presentation Template ID")]
-    public virtual string GammaTemplateId { get; set; }
-    public abstract class gammaTemplateId : PX.Data.BQL.BqlString.Field<gammaTemplateId> { }
-    #endregion
-
-    #region PresentationDescription
-    [PXDBString(2000, IsUnicode = true)]
-    [PXUIField(DisplayName = "Presentation Description")]
-    public virtual string PresentationDescription { get; set; }
-    public abstract class presentationDescription : PX.Data.BQL.BqlString.Field<presentationDescription> { }
-    #endregion
-
-    #region SlideGeneratedFileID
-    [PXDBGuid]
-    [PXUIField(DisplayName = "Slide File ID", Visible = false)]
-    public virtual Guid? SlideGeneratedFileID { get; set; }
-    public abstract class slideGeneratedFileID : PX.Data.BQL.BqlGuid.Field<slideGeneratedFileID> { }
-    #endregion
-
-    #region PresentationMarkdown
-    [PXDBText(IsUnicode = true)]
-    [PXUIField(DisplayName = "Presentation Markdown")]
-    public virtual string PresentationMarkdown { get; set; }
-    public abstract class presentationMarkdown : PX.Data.BQL.BqlString.Field<presentationMarkdown> { }
-    #endregion
-
-    #region SlideStatus
-    [PXDBString(1, IsUnicode = true)]
-    [PXDefault(ReportStatus.Pending, PersistingCheck = PXPersistingCheck.Nothing)]
-    [PXUIField(DisplayName = "Presentation Status", IsReadOnly = true)]
-    [PXStringList(
-        new[] { ReportStatus.Pending, ReportStatus.InProgress, ReportStatus.Completed, ReportStatus.Failed },
-        new[] { "File not Generated", "In Progress", "Ready to Download", "Failed" })]
-    public virtual string SlideStatus { get; set; }
-    public abstract class slideStatus : PX.Data.BQL.BqlString.Field<slideStatus> { }
-    #endregion
-
-    #region Report Status
-    public static class ReportStatus
-    {
-        public const string Pending    = "N";  // Not generated
-        public const string InProgress = "P";  // Processing
-        public const string Completed  = "C";  // Completed
-        public const string Failed     = "F";  // Failed
-
-        public class pending    : PX.Data.BQL.BqlString.Constant<pending>    { public pending()    : base(Pending)    { } }
-        public class inProgress : PX.Data.BQL.BqlString.Constant<inProgress> { public inProgress() : base(InProgress) { } }
-        public class completed  : PX.Data.BQL.BqlString.Constant<completed>  { public completed()  : base(Completed)  { } }
-        public class failed     : PX.Data.BQL.BqlString.Constant<failed>     { public failed()     : base(Failed)     { } }
-    }
     #endregion
 
     }
