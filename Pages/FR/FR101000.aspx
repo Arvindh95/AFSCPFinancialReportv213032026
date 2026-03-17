@@ -6,12 +6,9 @@
 		TypeName="FinancialReport.FLRTFinancialReportMaint"
 		PrimaryView="FinancialReport">
 		<CallbackCommands>
-			<px:PXDSCallbackCommand Name="generateReport"       CommitChanges="True" />
-			<px:PXDSCallbackCommand Name="downloadReport"       CommitChanges="True" />
-			<px:PXDSCallbackCommand Name="resetStatus"          CommitChanges="True" />
-			<px:PXDSCallbackCommand Name="downloadPresentation" CommitChanges="True" />
-			<px:PXDSCallbackCommand Name="previewMarkdown"      CommitChanges="True" />
-			<px:PXDSCallbackCommand Name="generateGamma"        CommitChanges="True" />
+			<px:PXDSCallbackCommand Name="generateReport" CommitChanges="True" />
+			<px:PXDSCallbackCommand Name="downloadReport" CommitChanges="True" />
+			<px:PXDSCallbackCommand Name="resetStatus"    CommitChanges="True" />
 		</CallbackCommands>
 	</px:PXDataSource>
 </asp:Content>
@@ -35,13 +32,6 @@
 			<px:PXSelector  runat="server" ID="edBranch"         DataField="Branch"         CommitChanges="True" />
 			<px:PXSelector  runat="server" ID="edLedger"         DataField="Ledger"         CommitChanges="True" />
 			<px:PXTextEdit  runat="server" ID="edStatus"         DataField="Status"         Enabled="False" />
-
-			<%-- Column 3: Presentation --%>
-			<px:PXLayoutRule runat="server" ID="rl_Col3" StartColumn="True" LabelsWidth="S" ControlSize="M" />
-			<px:PXTextEdit  runat="server" ID="edPresentationTitle"       DataField="PresentationTitle" />
-			<px:PXTextEdit  runat="server" ID="edPresentationDescription" DataField="PresentationDescription" TextMode="MultiLine" Height="60px" />
-			<px:PXTextEdit  runat="server" ID="edGammaTemplateId"         DataField="GammaTemplateId" />
-			<px:PXTextEdit  runat="server" ID="edSlideStatus"             DataField="SlideStatus" Enabled="False" />
 		</Template>
 	</px:PXFormView>
 </asp:Content>
@@ -65,16 +55,6 @@
 						</Levels>
 						<AutoSize Enabled="True" />
 					</px:PXGrid>
-				</Template>
-			</px:PXTabItem>
-			<px:PXTabItem Text="PRESENTATION MARKDOWN">
-				<Template>
-					<px:PXFormView runat="server" ID="fvMarkdown" DataMember="FinancialReport" DataSourceID="ds" Width="100%">
-						<Template>
-							<px:PXTextEdit runat="server" ID="edPresentationMarkdown" DataField="PresentationMarkdown"
-								TextMode="MultiLine" Height="400px" Width="100%" />
-						</Template>
-					</px:PXFormView>
 				</Template>
 			</px:PXTabItem>
 		</Items>

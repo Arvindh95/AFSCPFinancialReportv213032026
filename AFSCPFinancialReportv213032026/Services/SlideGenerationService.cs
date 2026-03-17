@@ -16,15 +16,15 @@ namespace FinancialReport.Services
     /// </summary>
     public class SlideGenerationService
     {
-        private readonly FLRTFinancialReportMaint _graph;
-        private readonly FLRTFinancialReport _currentRecord;
+        private readonly FLRTFinancialPresentationMaint _graph;
+        private readonly FLRTPresentationGeneration _currentRecord;
         private readonly AuthService _authService;
         private readonly string _tenantName;
         private readonly FileService _fileService;
 
         public SlideGenerationService(
-            FLRTFinancialReportMaint graph,
-            FLRTFinancialReport record,
+            FLRTFinancialPresentationMaint graph,
+            FLRTPresentationGeneration record,
             AuthService authService,
             string tenantName)
         {
@@ -81,7 +81,7 @@ namespace FinancialReport.Services
 
                 // ── 5. Save as .txt attachment ────────────────────────────────────
                 byte[] txtBytes = Encoding.UTF8.GetBytes(markdown);
-                string fileName = $"{_currentRecord.ReportCD}_MarkdownPreview_{DateTime.Now:yyyyMMdd_HHmm}.txt";
+                string fileName = $"{_currentRecord.PresentationCD}_MarkdownPreview_{DateTime.Now:yyyyMMdd_HHmm}.txt";
                 Guid fileID = _fileService.SaveGeneratedDocument(fileName, txtBytes, _currentRecord);
 
                 stopwatch.Stop();
