@@ -1,9 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading;
 using FinancialReport.Helper;
 using PX.Data;
+using PX.Data.BQL;
+using PX.Data.BQL.Fluent;
 
 namespace FinancialReport.Services
 {
@@ -51,35 +54,101 @@ namespace FinancialReport.Services
                 // ── 1. Load definitions, items, periods ───────────────────────────
                 var ctx = ReportDataPipeline.BuildContext(_graph, _currentRecord);
 
-                if (!ctx.DefinitionLinks.Any())
-                    throw new PXException(Messages.NoDefinitionsLinked);
+                bool hasDefinitions = ctx.DefinitionLinks.Any();
+                bool hasDataSources = false;
 
-                // ── 2. Validate descriptions on all visible items ─────────────────
-                var missingDesc = ctx.DefinitionsWithItems
-                    .SelectMany(d => d.Items)
-                    .Where(li => li.IsVisible == true && string.IsNullOrWhiteSpace(li.Description))
-                    .Select(li => li.LineCode)
+                // ── 2. Load GI Data Source links ──────────────────────────────────
+                var dataSourceLinks = PXSelect<FLRTPresentationDataSourceLink,
+                    Where<FLRTPresentationDataSourceLink.presentationID, Equal<Required<FLRTPresentationDataSourceLink.presentationID>>>,
+                    OrderBy<Asc<FLRTPresentationDataSourceLink.displayOrder>>>
+                    .Select(_graph, _currentRecord.PresentationID)
+                    .RowCast<FLRTPresentationDataSourceLink>()
                     .ToList();
 
-                if (missingDesc.Any())
-                    throw new PXException(Messages.VisibleLineItemsMissingDescriptions, string.Join(", ", missingDesc));
+                hasDataSources = dataSourceLinks.Any();
 
-                PXTrace.WriteInformation($"[Slide] Periods — CY:{ctx.SelectedPeriod}, PY:{ctx.PrevYearPeriod}, PM:{ctx.PrevMonthPeriod}");
+                if (!hasDefinitions && !hasDataSources)
+                    throw new PXException("No Report Definitions or GI Data Sources are linked to this presentation.");
 
-                // ── 3. Fetch GL data + run engine ─────────────────────────────────
-                var results = ReportDataPipeline.FetchAndCalculate(ctx, _graph, _currentRecord, _authService, _tenantName);
+                Dictionary<string, string> results = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+                // ── 3. Fetch GL data if definitions exist ─────────────────────────
+                if (hasDefinitions)
+                {
+                    var missingDesc = ctx.DefinitionsWithItems
+                        .SelectMany(d => d.Items)
+                        .Where(li => li.IsVisible == true && string.IsNullOrWhiteSpace(li.Description))
+                        .Select(li => li.LineCode)
+                        .ToList();
+
+                    if (missingDesc.Any())
+                        throw new PXException(Messages.VisibleLineItemsMissingDescriptions, string.Join(", ", missingDesc));
+
+                    PXTrace.WriteInformation($"[Slide] Periods — CY:{ctx.SelectedPeriod}, PY:{ctx.PrevYearPeriod}, PM:{ctx.PrevMonthPeriod}");
+
+                    results = ReportDataPipeline.FetchAndCalculate(ctx, _graph, _currentRecord, _authService, _tenantName);
+                    PXTrace.WriteInformation($"[Slide] GL fetch + engine: {results.Count} values in {stopwatch.ElapsedMilliseconds}ms");
+                }
 
                 cancellationToken.ThrowIfCancellationRequested();
-                PXTrace.WriteInformation($"[Slide] GL fetch + engine: {results.Count} values in {stopwatch.ElapsedMilliseconds}ms");
 
-                // ── 4. Build markdown ─────────────────────────────────────────────
+                // ── 4. Fetch GI Data Sources ──────────────────────────────────────
+                Dictionary<string, string> giPlaceholders = null;
+                var giDataSources = new List<(FLRTGIDataSource DS, List<FLRTGIDataSourceColumn> Columns)>();
+
+                if (hasDataSources)
+                {
+                    var creds = CredentialProvider.GetCredentials(_tenantName);
+                    var giService = new GIDataFetchService(_authService, creds.BaseURL, _tenantName);
+
+                    string year = _currentRecord.CurrYear ?? DateTime.Now.ToString("yyyy");
+                    string month = (_currentRecord.FinancialMonth ?? "12").PadLeft(2, '0');
+
+                    foreach (var link in dataSourceLinks)
+                    {
+                        var ds = PXSelect<FLRTGIDataSource,
+                            Where<FLRTGIDataSource.dataSourceID, Equal<Required<FLRTGIDataSource.dataSourceID>>>>
+                            .Select(_graph, link.DataSourceID)
+                            .TopFirst;
+
+                        if (ds == null || ds.IsActive != true) continue;
+
+                        var columns = PXSelect<FLRTGIDataSourceColumn,
+                            Where<FLRTGIDataSourceColumn.dataSourceID, Equal<Required<FLRTGIDataSourceColumn.dataSourceID>>>,
+                            OrderBy<Asc<FLRTGIDataSourceColumn.sortOrder>>>
+                            .Select(_graph, ds.DataSourceID)
+                            .RowCast<FLRTGIDataSourceColumn>()
+                            .ToList();
+
+                        giDataSources.Add((ds, columns));
+
+                        PXTrace.WriteInformation($"[Slide] Fetching GI Data Source '{ds.DataSourceCD}' (prefix: {ds.Prefix})...");
+
+                        var dsResults = giService.FetchAndAggregate(
+                            ds, columns, year, month,
+                            _currentRecord.Branch,
+                            _currentRecord.Organization,
+                            _currentRecord.Ledger);
+
+                        foreach (var kv in dsResults)
+                        {
+                            results[kv.Key] = kv.Value;
+                        }
+
+                        PXTrace.WriteInformation($"[Slide] GI '{ds.DataSourceCD}' produced {dsResults.Count} placeholders.");
+                    }
+                }
+
+                cancellationToken.ThrowIfCancellationRequested();
+
+                // ── 5. Build markdown ─────────────────────────────────────────────
                 var markdownBuilder = new MarkdownBuilderService();
-                string markdown = markdownBuilder.Build(_currentRecord, ctx.DefinitionsWithItems, results);
+                string markdown = markdownBuilder.Build(_currentRecord, ctx.DefinitionsWithItems, results, giDataSources);
                 LastGeneratedMarkdown = markdown;
 
                 PXTrace.WriteInformation($"[Slide] Markdown built — {markdown.Length} chars");
 
-                // ── 5. Save as .txt attachment ────────────────────────────────────
+                // ── 6. Save as .txt attachment ────────────────────────────────────
                 byte[] txtBytes = Encoding.UTF8.GetBytes(markdown);
                 string fileName = $"{_currentRecord.PresentationCD}_MarkdownPreview_{DateTime.Now:yyyyMMdd_HHmm}.txt";
                 Guid fileID = _fileService.SaveGeneratedDocument(fileName, txtBytes, _currentRecord);

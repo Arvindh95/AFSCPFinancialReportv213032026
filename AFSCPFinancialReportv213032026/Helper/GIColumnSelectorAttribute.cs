@@ -80,6 +80,13 @@ namespace FinancialReport.Helper
             var cache = graph?.Caches[typeof(FLRTReportDefinition)];
             if (cache?.Current is FLRTReportDefinition def)
                 giName = def.GIName;
+            // Fallback: FLRTGIDataSource cache (GI Data Source screen)
+            if (giName == null)
+            {
+                var dsCache = graph?.Caches[typeof(FLRTGIDataSource)];
+                if (dsCache?.Current is FLRTGIDataSource ds)
+                    giName = ds.GIName;
+            }
 
             if (string.IsNullOrWhiteSpace(giName))
                 yield break;
@@ -116,6 +123,69 @@ namespace FinancialReport.Helper
 
                 if (!seen.Add(colName)) continue;
 
+                yield return new FLRTGIColumnItem { ColumnName = colName };
+            }
+        }
+    }
+
+    /// <summary>
+    /// Selector for GI Data Source screens. Prefers OData column names from DetectedColumns
+    /// (populated by Detect Columns action) over the GIResult table fallback, because OData
+    /// property names often differ from the internal ObjectName_Field format.
+    /// </summary>
+    public class GIDataSourceColumnSelectorAttribute : PXCustomSelectorAttribute
+    {
+        public GIDataSourceColumnSelectorAttribute()
+            : base(typeof(FLRTGIColumnItem.columnName))
+        {
+            DescriptionField = typeof(FLRTGIColumnItem.columnName);
+            ValidateValue    = false;
+        }
+
+        public IEnumerable GetRecords()
+        {
+            PXGraph graph = PXView.CurrentGraph ?? _Graph;
+
+            // Try to read stored OData column names from DetectedColumns
+            var dsCache = graph?.Caches[typeof(FLRTGIDataSource)];
+            var ds = dsCache?.Current as FLRTGIDataSource;
+            if (ds != null && !string.IsNullOrWhiteSpace(ds.DetectedColumns))
+            {
+                foreach (string col in ds.DetectedColumns.Split(','))
+                {
+                    string trimmed = col.Trim();
+                    if (!string.IsNullOrEmpty(trimmed))
+                        yield return new FLRTGIColumnItem { ColumnName = trimmed };
+                }
+                yield break;
+            }
+
+            // Fallback: read from GIResult table (ObjectName_Field format)
+            string giName = ds?.GIName;
+            if (string.IsNullOrWhiteSpace(giName))
+                yield break;
+
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            var rows = SelectFrom<GIResult>
+                .InnerJoin<GIDesign>.On<GIResult.designID.IsEqual<GIDesign.designID>>
+                .Where<GIDesign.name.IsEqual<@P.AsString>
+                    .And<GIResult.isVisible.IsEqual<True>>>
+                .OrderBy<GIResult.lineNbr.Asc>
+                .View.Select(graph, giName);
+
+            foreach (PXResult<GIResult, GIDesign> row in rows)
+            {
+                GIResult r = row;
+                string colName;
+                if (!string.IsNullOrWhiteSpace(r.Caption))
+                    colName = r.Caption.Replace(" ", "");
+                else if (!string.IsNullOrWhiteSpace(r.Field) && !r.Field.TrimStart().StartsWith("="))
+                    colName = $"{r.ObjectName}_{r.Field}";
+                else
+                    continue;
+
+                if (!seen.Add(colName)) continue;
                 yield return new FLRTGIColumnItem { ColumnName = colName };
             }
         }

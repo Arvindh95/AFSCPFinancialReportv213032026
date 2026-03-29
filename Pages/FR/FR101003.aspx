@@ -64,6 +64,23 @@
 					</px:PXGrid>
 				</Template>
 			</px:PXTabItem>
+			<px:PXTabItem Text="GI DATA SOURCES">
+				<Template>
+					<px:PXGrid Width="100%" SkinID="Details" runat="server" ID="gridDataSourceLinks"
+						DataSourceID="ds" AutoAdjustColumns="True">
+						<Levels>
+							<px:PXGridLevel DataMember="DataSourceLinks">
+								<Columns>
+									<px:PXGridColumn DataField="DataSourceID"     Width="220" CommitChanges="True" />
+									<px:PXGridColumn DataField="DataSourcePrefix" Width="80" />
+									<px:PXGridColumn DataField="DisplayOrder"     Width="100" CommitChanges="True" />
+								</Columns>
+							</px:PXGridLevel>
+						</Levels>
+						<AutoSize Enabled="True" />
+					</px:PXGrid>
+				</Template>
+			</px:PXTabItem>
 			<px:PXTabItem Text="PRESENTATION MARKDOWN">
 				<Template>
 					<px:PXFormView runat="server" ID="fvMarkdown" DataMember="PresentationRecord" DataSourceID="ds" Width="100%">

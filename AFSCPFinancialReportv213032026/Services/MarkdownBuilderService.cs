@@ -148,11 +148,13 @@ namespace FinancialReport.Services
 
         /// <summary>
         /// Builds the markdown prompt from a FLRTPresentationGeneration record.
+        /// Overload with GI data sources for mixed or purely GI-driven presentations.
         /// </summary>
         public string Build(
             FLRTPresentationGeneration presentation,
             List<(ReportCalculationEngine.DefinitionLink DefLink, List<FLRTReportLineItem> Items)> definitions,
-            Dictionary<string, string> results)
+            Dictionary<string, string> results,
+            List<(FLRTGIDataSource DS, List<FLRTGIDataSourceColumn> Columns)> giDataSources = null)
         {
             int month = int.TryParse(presentation.FinancialMonth, out int m) ? m : 12;
             if (month < 1 || month > 12) month = 12;
@@ -240,24 +242,93 @@ namespace FinancialReport.Services
             sb.AppendLine("## Financial Data");
             sb.AppendLine();
 
-            foreach (var (defLink, items) in definitions)
+            // ── TB Definition line items ──────────────────────────────────────
+            if (definitions != null && definitions.Any())
             {
-                var visibleItems = items.Where(l => l.IsVisible == true).ToList();
-                if (!visibleItems.Any()) continue;
-
-                foreach (var line in visibleItems)
+                foreach (var (defLink, items) in definitions)
                 {
-                    string keyBase = $"{defLink.Prefix}_{line.LineCode}";
-                    string cyVal   = GetValue(results, keyBase + "_" + Constants.CurrentYearSuffix);
-                    string pmVal   = GetValue(results, keyBase + "_" + Constants.PreviousMonthSuffix);
-                    string pyVal   = GetValue(results, keyBase + "_" + Constants.PreviousYearSuffix);
+                    var visibleItems = items.Where(l => l.IsVisible == true).ToList();
+                    if (!visibleItems.Any()) continue;
 
-                    string label = !string.IsNullOrWhiteSpace(line.Description) ? line.Description : line.LineCode;
+                    foreach (var line in visibleItems)
+                    {
+                        string keyBase = $"{defLink.Prefix}_{line.LineCode}";
+                        string cyVal   = GetValue(results, keyBase + "_" + Constants.CurrentYearSuffix);
+                        string pmVal   = GetValue(results, keyBase + "_" + Constants.PreviousMonthSuffix);
+                        string pyVal   = GetValue(results, keyBase + "_" + Constants.PreviousYearSuffix);
 
-                    sb.AppendLine($"### {label}");
-                    sb.AppendLine($"- {cyLabel}: {cyVal}");
-                    sb.AppendLine($"- {pmLabel}: {pmVal}");
-                    sb.AppendLine($"- {pyLabel}: {pyVal}");
+                        string label = !string.IsNullOrWhiteSpace(line.Description) ? line.Description : line.LineCode;
+
+                        sb.AppendLine($"### {label}");
+                        sb.AppendLine($"- {cyLabel}: {cyVal}");
+                        sb.AppendLine($"- {pmLabel}: {pmVal}");
+                        sb.AppendLine($"- {pyLabel}: {pyVal}");
+                        sb.AppendLine();
+                    }
+                }
+            }
+
+            // ── GI Data Source placeholders ────────────────────────────────────
+            if (giDataSources != null && giDataSources.Any())
+            {
+                sb.AppendLine("## Additional Data (Generic Inquiries)");
+                sb.AppendLine();
+
+                foreach (var (ds, columns) in giDataSources)
+                {
+                    string prefix = ds.Prefix ?? "";
+                    string dsLabel = !string.IsNullOrWhiteSpace(ds.Description) ? ds.Description : ds.DataSourceCD;
+                    sb.AppendLine($"### {dsLabel}");
+                    sb.AppendLine();
+
+                    var visibleColumns = columns
+                        .Where(c => c.IsVisible == true && c.LineType != FLRTGIDataSourceColumn.ColumnLineType.Heading)
+                        .ToList();
+
+                    foreach (var col in visibleColumns)
+                    {
+                        string colLabel = !string.IsNullOrWhiteSpace(col.Description) ? col.Description : col.ColumnAlias;
+                        string baseKey = string.IsNullOrWhiteSpace(prefix)
+                            ? col.ColumnAlias
+                            : $"{prefix}_{col.ColumnAlias}";
+
+                        if (col.LineType == FLRTGIDataSourceColumn.ColumnLineType.MultiRow)
+                        {
+                            // Find all expanded keys: PREFIX_ALIAS_RANK_PropName
+                            int limit = col.RowLimit ?? 10;
+
+                            // If DisplayColumns is set, filter which properties appear in markdown
+                            HashSet<string> displayCols = null;
+                            if (!string.IsNullOrWhiteSpace(col.DisplayColumns))
+                            {
+                                displayCols = new HashSet<string>(
+                                    col.DisplayColumns.Split(',').Select(c => c.Trim()).Where(c => c.Length > 0),
+                                    StringComparer.OrdinalIgnoreCase);
+                            }
+
+                            sb.AppendLine($"- **{colLabel}:**");
+                            for (int rank = 1; rank <= limit; rank++)
+                            {
+                                string rankPrefix = $"{baseKey}_{rank}_";
+                                var rankKeys = results != null
+                                    ? results.Keys.Where(k => k.StartsWith(rankPrefix, StringComparison.OrdinalIgnoreCase)).OrderBy(k => k).ToList()
+                                    : new List<string>();
+                                if (!rankKeys.Any()) break;
+
+                                // Apply display column filter if configured
+                                if (displayCols != null)
+                                    rankKeys = rankKeys.Where(k => displayCols.Contains(k.Substring(rankPrefix.Length))).ToList();
+
+                                var parts = rankKeys.Select(k => $"{k.Substring(rankPrefix.Length)}: {results[k]}");
+                                sb.AppendLine($"  - Row {rank}: {string.Join(", ", parts)}");
+                            }
+                        }
+                        else
+                        {
+                            string value = GetValue(results, baseKey);
+                            sb.AppendLine($"- **{colLabel}:** {value}");
+                        }
+                    }
                     sb.AppendLine();
                 }
             }

@@ -19,9 +19,22 @@ namespace FinancialReport
             .Where<FLRTPresentationDefinitionLink.presentationID.IsEqual<FLRTPresentationGeneration.presentationID.FromCurrent>>
             .OrderBy<FLRTPresentationDefinitionLink.displayOrder.Asc>
             .View DefinitionLinks;
+
+        public SelectFrom<FLRTPresentationDataSourceLink>
+            .Where<FLRTPresentationDataSourceLink.presentationID.IsEqual<FLRTPresentationGeneration.presentationID.FromCurrent>>
+            .OrderBy<FLRTPresentationDataSourceLink.displayOrder.Asc>
+            .View DataSourceLinks;
         #endregion
 
         #region Events
+
+        protected void _(Events.FieldSelecting<FLRTPresentationDataSourceLink, FLRTPresentationDataSourceLink.dataSourcePrefix> e)
+        {
+            if (e.Row?.DataSourceID == null) return;
+            var ds = PXSelectorAttribute.Select<FLRTPresentationDataSourceLink.dataSourceID>(e.Cache, e.Row) as FLRTGIDataSource;
+            if (ds != null)
+                e.ReturnValue = ds.Prefix;
+        }
 
         protected void _(Events.FieldSelecting<FLRTPresentationDefinitionLink, FLRTPresentationDefinitionLink.definitionPrefix> e)
         {
