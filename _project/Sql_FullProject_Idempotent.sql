@@ -1,9 +1,9 @@
 -- =============================================
 -- Full Project SQL: AFSCPFinancialReport (Idempotent)
 -- Safe to run on ANY database state:
---   - Table missing   → CREATE TABLE
---   - Table exists     → ADD any missing columns
--- Does NOT drop or alter existing columns.
+--   - Fresh database   → CREATE TABLE with correct schema
+--   - Old deployment   → ADD missing columns, MIGRATE legacy schema
+--   - Current database → No-op (all checks pass harmlessly)
 -- =============================================
 
 PRINT '======================================================'
@@ -30,6 +30,7 @@ BEGIN
         [ClientIDNew]            [nvarchar](255)    NULL,
         [ClientSecretNew]        [nvarchar](255)    NULL,
         [GammaApiKey]            [nvarchar](500)    NULL,
+        [NoteID]                 [uniqueidentifier] NOT NULL DEFAULT(NEWID()),
         [CreatedDateTime]        [datetime]         NOT NULL DEFAULT(GETDATE()),
         [CreatedByID]            [uniqueidentifier] NOT NULL DEFAULT('00000000-0000-0000-0000-000000000000'),
         [CreatedByScreenID]      [char](8)          NOT NULL DEFAULT('        '),
@@ -67,6 +68,31 @@ BEGIN
 
     IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[FLRTTenantCredentials]') AND name = N'GammaApiKey')
         ALTER TABLE [dbo].[FLRTTenantCredentials] ADD [GammaApiKey] [nvarchar](500) NULL;
+
+    IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[FLRTTenantCredentials]') AND name = N'NoteID')
+        ALTER TABLE [dbo].[FLRTTenantCredentials] ADD [NoteID] [uniqueidentifier] NOT NULL DEFAULT(NEWID());
+
+    -- Migration: drop orphaned columns from old schema
+    IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[FLRTTenantCredentials]') AND name = N'AlaiApiKey')
+    BEGIN
+        ALTER TABLE [dbo].[FLRTTenantCredentials] DROP COLUMN [AlaiApiKey];
+        PRINT '  ~ Dropped orphaned column AlaiApiKey';
+    END
+
+    IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[FLRTTenantCredentials]') AND name = N'SlidesGptApiKey')
+    BEGIN
+        ALTER TABLE [dbo].[FLRTTenantCredentials] DROP COLUMN [SlidesGptApiKey];
+        PRINT '  ~ Dropped orphaned column SlidesGptApiKey';
+    END
+
+    -- Migration: widen GammaApiKey from nvarchar(255) to nvarchar(500) if needed
+    IF EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+               WHERE TABLE_NAME = 'FLRTTenantCredentials' AND COLUMN_NAME = 'GammaApiKey'
+                 AND CHARACTER_MAXIMUM_LENGTH < 500)
+    BEGIN
+        ALTER TABLE [dbo].[FLRTTenantCredentials] ALTER COLUMN [GammaApiKey] [nvarchar](500) NULL;
+        PRINT '  ~ GammaApiKey widened to nvarchar(500)';
+    END
 
     PRINT 'FLRTTenantCredentials column check complete.'
 END
@@ -157,6 +183,30 @@ BEGIN
 
     IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[FLRTReportDefinition]') AND name = N'DecimalPlaces')
         ALTER TABLE [dbo].[FLRTReportDefinition] ADD [DecimalPlaces] [int] NOT NULL DEFAULT(0);
+
+    -- Migration: rebuild PK from (CompanyID, DefinitionCD) to (CompanyID, DefinitionID)
+    -- Old script used DefinitionCD in the PK; current schema uses the IDENTITY DefinitionID.
+    IF EXISTS (
+        SELECT 1 FROM sys.index_columns ic
+        INNER JOIN sys.indexes i ON ic.object_id = i.object_id AND ic.index_id = i.index_id
+        INNER JOIN sys.columns c ON ic.object_id = c.object_id AND ic.column_id = c.column_id
+        WHERE i.object_id = OBJECT_ID(N'[dbo].[FLRTReportDefinition]')
+          AND i.is_primary_key = 1
+          AND c.name = N'DefinitionCD'
+    )
+    BEGIN
+        PRINT '  ~ Rebuilding PK: (CompanyID, DefinitionCD) -> (CompanyID, DefinitionID)';
+
+        DECLARE @rdPK NVARCHAR(128);
+        SELECT @rdPK = name FROM sys.key_constraints
+            WHERE parent_object_id = OBJECT_ID(N'[dbo].[FLRTReportDefinition]') AND type = 'PK';
+        EXEC('ALTER TABLE [dbo].[FLRTReportDefinition] DROP CONSTRAINT [' + @rdPK + ']');
+
+        ALTER TABLE [dbo].[FLRTReportDefinition]
+            ADD CONSTRAINT [PK_FLRTReportDefinition] PRIMARY KEY CLUSTERED ([CompanyID] ASC, [DefinitionID] ASC);
+
+        PRINT '  ~ PK rebuilt on (CompanyID, DefinitionID)';
+    END
 
     PRINT 'FLRTReportDefinition column check complete.'
 END
@@ -362,6 +412,76 @@ BEGIN
 
     IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[FLRTFinancialReport]') AND name = N'NoteID')
         ALTER TABLE [dbo].[FLRTFinancialReport] ADD [NoteID] [uniqueidentifier] NOT NULL DEFAULT(NEWID());
+
+    -- Migration: convert Status from old full-text values to 1-char codes, then shrink column
+    IF EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+               WHERE TABLE_NAME = 'FLRTFinancialReport' AND COLUMN_NAME = 'Status'
+                 AND CHARACTER_MAXIMUM_LENGTH > 1)
+    BEGIN
+        PRINT '  ~ Migrating Status from nvarchar(100) to nvarchar(1)';
+
+        -- Map old text values to new 1-char codes
+        UPDATE [dbo].[FLRTFinancialReport] SET [Status] = 'N' WHERE [Status] IN ('File not Generated', 'Not Generated', 'Pending');
+        UPDATE [dbo].[FLRTFinancialReport] SET [Status] = 'P' WHERE [Status] = 'In Progress';
+        UPDATE [dbo].[FLRTFinancialReport] SET [Status] = 'C' WHERE [Status] IN ('Ready to Download', 'Completed');
+        UPDATE [dbo].[FLRTFinancialReport] SET [Status] = 'F' WHERE [Status] = 'Failed';
+        -- Catch-all: any unrecognised value defaults to N
+        UPDATE [dbo].[FLRTFinancialReport] SET [Status] = 'N' WHERE LEN([Status]) > 1;
+
+        -- Drop the old default constraint before altering the column
+        DECLARE @frStatusDC NVARCHAR(256);
+        SELECT @frStatusDC = dc.name
+        FROM sys.default_constraints dc
+        INNER JOIN sys.columns c ON dc.parent_object_id = c.object_id AND dc.parent_column_id = c.column_id
+        WHERE c.object_id = OBJECT_ID(N'[dbo].[FLRTFinancialReport]') AND c.name = 'Status';
+        IF @frStatusDC IS NOT NULL
+            EXEC('ALTER TABLE [dbo].[FLRTFinancialReport] DROP CONSTRAINT [' + @frStatusDC + ']');
+
+        ALTER TABLE [dbo].[FLRTFinancialReport] ALTER COLUMN [Status] [nvarchar](1) NOT NULL;
+        ALTER TABLE [dbo].[FLRTFinancialReport] ADD DEFAULT('N') FOR [Status];
+
+        PRINT '  ~ Status migrated to nvarchar(1) with code values (N/P/C/F)';
+    END
+
+    -- Migration: shrink FinancialMonth from nvarchar(50) to nvarchar(2)
+    IF EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+               WHERE TABLE_NAME = 'FLRTFinancialReport' AND COLUMN_NAME = 'FinancialMonth'
+                 AND CHARACTER_MAXIMUM_LENGTH > 2)
+    BEGIN
+        PRINT '  ~ Shrinking FinancialMonth to nvarchar(2)';
+
+        DECLARE @frMonthDC NVARCHAR(256);
+        SELECT @frMonthDC = dc.name
+        FROM sys.default_constraints dc
+        INNER JOIN sys.columns c ON dc.parent_object_id = c.object_id AND dc.parent_column_id = c.column_id
+        WHERE c.object_id = OBJECT_ID(N'[dbo].[FLRTFinancialReport]') AND c.name = 'FinancialMonth';
+        IF @frMonthDC IS NOT NULL
+            EXEC('ALTER TABLE [dbo].[FLRTFinancialReport] DROP CONSTRAINT [' + @frMonthDC + ']');
+
+        -- Truncate any values longer than 2 chars (shouldn't exist, but safety)
+        UPDATE [dbo].[FLRTFinancialReport] SET [FinancialMonth] = LEFT([FinancialMonth], 2)
+            WHERE LEN([FinancialMonth]) > 2;
+
+        ALTER TABLE [dbo].[FLRTFinancialReport] ALTER COLUMN [FinancialMonth] [nvarchar](2) NOT NULL;
+        ALTER TABLE [dbo].[FLRTFinancialReport] ADD DEFAULT('12') FOR [FinancialMonth];
+
+        PRINT '  ~ FinancialMonth shrunk to nvarchar(2)';
+    END
+
+    -- Migration: drop orphaned Selected column
+    IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[FLRTFinancialReport]') AND name = N'Selected')
+    BEGIN
+        DECLARE @frSelDC NVARCHAR(256);
+        SELECT @frSelDC = dc.name
+        FROM sys.default_constraints dc
+        INNER JOIN sys.columns c ON dc.parent_object_id = c.object_id AND dc.parent_column_id = c.column_id
+        WHERE c.object_id = OBJECT_ID(N'[dbo].[FLRTFinancialReport]') AND c.name = 'Selected';
+        IF @frSelDC IS NOT NULL
+            EXEC('ALTER TABLE [dbo].[FLRTFinancialReport] DROP CONSTRAINT [' + @frSelDC + ']');
+
+        ALTER TABLE [dbo].[FLRTFinancialReport] DROP COLUMN [Selected];
+        PRINT '  ~ Dropped orphaned column Selected';
+    END
 
     PRINT 'FLRTFinancialReport column check complete.'
 END
@@ -863,5 +983,6 @@ PRINT '  9. FLRTGIDataSourceColumn'
 PRINT ' 10. FLRTPresentationDataSourceLink'
 PRINT ''
 PRINT 'Each table: created if missing, or columns added if absent.'
+PRINT 'Migrations: orphaned columns dropped, column types corrected, PK rebuilt.'
 PRINT 'Indexes: created if missing.'
 PRINT '======================================================'

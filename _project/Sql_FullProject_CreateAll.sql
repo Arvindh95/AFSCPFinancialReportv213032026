@@ -30,6 +30,7 @@ BEGIN
         [ClientIDNew]            [nvarchar](255)    NULL,
         [ClientSecretNew]        [nvarchar](255)    NULL,
         [GammaApiKey]            [nvarchar](500)    NULL,
+        [NoteID]                 [uniqueidentifier] NOT NULL DEFAULT(NEWID()),
         [CreatedDateTime]        [datetime]         NOT NULL DEFAULT(GETDATE()),
         [CreatedByID]            [uniqueidentifier] NOT NULL DEFAULT('00000000-0000-0000-0000-000000000000'),
         [CreatedByScreenID]      [char](8)          NOT NULL DEFAULT('        '),
