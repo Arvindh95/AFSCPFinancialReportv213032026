@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -E \"\\\\.\\(xml|sql\\)$\")",
+      "Bash(wc -l \"c:\\\\Program Files\\\\Acumatica ERP\\\\2025R2\\\\App_Data\\\\Projects\\\\AFSCPFinancialReportv213032026\"/AFSCPFinancialReportv213032026/DAC/*.cs \"c:\\\\Program Files\\\\Acumatica ERP\\\\2025R2\\\\App_Data\\\\Projects\\\\AFSCPFinancialReportv213032026\"/AFSCPFinancialReportv213032026/Graph/*.cs \"c:\\\\Program Files\\\\Acumatica ERP\\\\2025R2\\\\App_Data\\\\Projects\\\\AFSCPFinancialReportv213032026\"/AFSCPFinancialReportv213032026/Services/*.cs)",
+      "Read(//c/Program Files/Acumatica ERP/2025R2/App_Data/Projects/AFSCPFinancialReportv213032026/**)",
+      "Bash(ls \"/c/Users/CSM-Arvindh/OneDrive - Censof Holdings/Desktop/Training & Certifications\")",
+      "Bash(ls \"/c/Users/CSM-Arvindh/OneDrive - Censof Holdings/Desktop/Training & Certifications/Acumatica Training Materials\")",
+      "Bash(find \"/c/Users/CSM-Arvindh/OneDrive - Censof Holdings/Desktop/Training & Certifications/Acumatica Training Materials/Acumatica_Training_Word\" -maxdepth 6 -type d)",
+      "Bash(ls \"/c/Users/CSM-Arvindh/OneDrive - Censof Holdings/Desktop/Training & Certifications/Acumatica Training Materials/Acumatica_Training_Word/Projects/Acumatica_Training/Requirements/Word-Docs/Source\")",
+      "Bash(ls \"/c/Users/CSM-Arvindh/OneDrive - Censof Holdings/Desktop/Training & Certifications/Acumatica Training Materials/Acumatica_Training_Word/Projects/Acumatica_Training/Requirements/Word-Docs/Converted_MD\")",
+      "Bash(wc -l \"/c/Users/CSM-Arvindh/OneDrive - Censof Holdings/Desktop/Training & Certifications/Acumatica Training Materials/Acumatica_Training_Word/Projects/Acumatica_Training/Requirements/Word-Docs/Converted_MD/T290_ModernUI_2025R2.md\")",
+      "Bash(grep -r 'class Setup\\\\b' /c/Program Files/Acumatica ERP/2025R2/App_Data/Projects/ --include=*.cs)"
+    ]
+  }
+}

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 using PX.Data;
@@ -59,7 +60,8 @@ namespace FinancialReport.Services
             FLRTGIDataSource ds,
             List<FLRTGIDataSourceColumn> columns,
             string year, string month,
-            string branch = null, string organization = null, string ledger = null)
+            string branch = null, string organization = null, string ledger = null,
+            CancellationToken cancellationToken = default)
         {
             if (ds == null) throw new PXException("Data source is null.");
             if (string.IsNullOrWhiteSpace(ds.GIName))
@@ -109,22 +111,22 @@ namespace FinancialReport.Services
                     var errors = new List<string>();
 
                     // Attempt 1: Modern URL + filter + $select (optimal)
-                    var result = await PaginatedFetchAsync(modernUrl, filter, selectColumns, accessToken, errors);
+                    var result = await PaginatedFetchAsync(modernUrl, filter, selectColumns, accessToken, errors, cancellationToken);
                     if (result != null) return (result, errors);
 
                     // Attempt 2: Modern URL + filter, NO $select (column names may differ)
-                    result = await PaginatedFetchAsync(modernUrl, filter, null, accessToken, errors);
+                    result = await PaginatedFetchAsync(modernUrl, filter, null, accessToken, errors, cancellationToken);
                     if (result != null) return (result, errors);
 
                     // Attempt 3: Modern URL, no filter, no $select (last resort)
-                    result = await PaginatedFetchAsync(modernUrl, null, null, accessToken, errors);
+                    result = await PaginatedFetchAsync(modernUrl, null, null, accessToken, errors, cancellationToken);
                     if (result != null) return (result, errors);
 
                     // Attempt 4: Legacy URL, no filter, no $select
-                    result = await PaginatedFetchAsync(legacyUrl, null, null, accessToken, errors);
+                    result = await PaginatedFetchAsync(legacyUrl, null, null, accessToken, errors, cancellationToken);
                     return (result, errors);
-                });
-                task.Wait();
+                }, cancellationToken);
+                task.Wait(cancellationToken);
                 rows = task.Result.result;
                 fetchErrors = task.Result.errors;
             }
@@ -769,14 +771,16 @@ namespace FinancialReport.Services
 
         // FetchWithFallbackAsync removed — fallback logic is now inline in FetchAndAggregate.
 
-        private async Task<List<JToken>> PaginatedFetchAsync(string baseUrl, string filter, string selectColumns, string accessToken, List<string> errors)
+        private async Task<List<JToken>> PaginatedFetchAsync(string baseUrl, string filter, string selectColumns, string accessToken, List<string> errors, CancellationToken cancellationToken = default, int maxRows = 100_000)
         {
             var allResults = new List<JToken>();
-            int pageSize = 5000;
+            int pageSize = 10_000;
             int skip = 0;
 
             while (true)
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 // Build query string from available parts
                 var queryParts = new List<string>();
                 if (!string.IsNullOrWhiteSpace(filter))
@@ -793,7 +797,7 @@ namespace FinancialReport.Services
                     using (var request = new HttpRequestMessage(HttpMethod.Get, pagedUrl))
                     {
                         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-                        response = await _httpClient.SendAsync(request);
+                        response = await _httpClient.SendAsync(request, cancellationToken);
                     }
 
                     if (!response.IsSuccessStatusCode)
@@ -819,7 +823,14 @@ namespace FinancialReport.Services
 
                     allResults.AddRange(pageResults);
                     skip += pageSize;
+
+                    if (allResults.Count >= maxRows)
+                    {
+                        PXTrace.WriteWarning($"[GIDataFetchService] Row cap reached: fetched {allResults.Count} rows (limit={maxRows}) from {baseUrl}. Results may be incomplete.");
+                        break;
+                    }
                 }
+                catch (OperationCanceledException) { throw; }
                 catch (Exception ex)
                 {
                     errors.Add($"Exception fetching {baseUrl}: {ex.Message}");

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using FinancialReport.Helper;
 using PX.Data;
@@ -150,20 +151,21 @@ namespace FinancialReport.Services
             PXGraph graph,
             FLRTFinancialReport record,
             AuthService authService,
-            string tenantName)
+            string tenantName,
+            CancellationToken cancellationToken = default)
         {
             if (ctx == null) throw new ArgumentNullException(nameof(ctx));
 
             var dataService = new FinancialDataService(authService, tenantName, ctx.ColumnMapping);
 
-            var taskCY    = Task.Run(() => dataService.FetchAllApiData(record.Branch, record.Organization, record.Ledger, ctx.SelectedPeriod,      false));
-            var taskPY    = Task.Run(() => dataService.FetchAllApiData(record.Branch, record.Organization, record.Ledger, ctx.PrevYearPeriod,      false));
-            var taskPrior = Task.Run(() => dataService.FetchAllApiData(record.Branch, record.Organization, record.Ledger, ctx.PrevYearPriorPeriod, false));
-            var taskPM    = Task.Run(() => dataService.FetchAllApiData(record.Branch, record.Organization, record.Ledger, ctx.PrevMonthPeriod,     false));
-            var taskJanCY = Task.Run(() => dataService.FetchJanuaryBeginningBalance(record.Branch, record.Organization, record.Ledger, ctx.CurrYear));
-            var taskJanPY = Task.Run(() => dataService.FetchJanuaryBeginningBalance(record.Branch, record.Organization, record.Ledger, ctx.PrevYear));
+            var taskCY    = Task.Run(() => dataService.FetchAllApiData(record.Branch, record.Organization, record.Ledger, ctx.SelectedPeriod,      false, cancellationToken), cancellationToken);
+            var taskPY    = Task.Run(() => dataService.FetchAllApiData(record.Branch, record.Organization, record.Ledger, ctx.PrevYearPeriod,      false, cancellationToken), cancellationToken);
+            var taskPrior = Task.Run(() => dataService.FetchAllApiData(record.Branch, record.Organization, record.Ledger, ctx.PrevYearPriorPeriod, false, cancellationToken), cancellationToken);
+            var taskPM    = Task.Run(() => dataService.FetchAllApiData(record.Branch, record.Organization, record.Ledger, ctx.PrevMonthPeriod,     false, cancellationToken), cancellationToken);
+            var taskJanCY = Task.Run(() => dataService.FetchJanuaryBeginningBalance(record.Branch, record.Organization, record.Ledger, ctx.CurrYear, cancellationToken), cancellationToken);
+            var taskJanPY = Task.Run(() => dataService.FetchJanuaryBeginningBalance(record.Branch, record.Organization, record.Ledger, ctx.PrevYear, cancellationToken), cancellationToken);
 
-            Task.WhenAll(taskCY, taskPY, taskPrior, taskPM, taskJanCY, taskJanPY).Wait();
+            Task.WhenAll(taskCY, taskPY, taskPrior, taskPM, taskJanCY, taskJanPY).Wait(cancellationToken);
 
             var engine = new ReportCalculationEngine(graph);
             return engine.CalculateAll(
@@ -269,20 +271,21 @@ namespace FinancialReport.Services
             PXGraph graph,
             FLRTPresentationGeneration record,
             AuthService authService,
-            string tenantName)
+            string tenantName,
+            CancellationToken cancellationToken = default)
         {
             if (ctx == null) throw new ArgumentNullException(nameof(ctx));
 
             var dataService = new FinancialDataService(authService, tenantName, ctx.ColumnMapping);
 
-            var taskCY    = Task.Run(() => dataService.FetchAllApiData(record.Branch, record.Organization, record.Ledger, ctx.SelectedPeriod,      false));
-            var taskPY    = Task.Run(() => dataService.FetchAllApiData(record.Branch, record.Organization, record.Ledger, ctx.PrevYearPeriod,      false));
-            var taskPrior = Task.Run(() => dataService.FetchAllApiData(record.Branch, record.Organization, record.Ledger, ctx.PrevYearPriorPeriod, false));
-            var taskPM    = Task.Run(() => dataService.FetchAllApiData(record.Branch, record.Organization, record.Ledger, ctx.PrevMonthPeriod,     false));
-            var taskJanCY = Task.Run(() => dataService.FetchJanuaryBeginningBalance(record.Branch, record.Organization, record.Ledger, ctx.CurrYear));
-            var taskJanPY = Task.Run(() => dataService.FetchJanuaryBeginningBalance(record.Branch, record.Organization, record.Ledger, ctx.PrevYear));
+            var taskCY    = Task.Run(() => dataService.FetchAllApiData(record.Branch, record.Organization, record.Ledger, ctx.SelectedPeriod,      false, cancellationToken), cancellationToken);
+            var taskPY    = Task.Run(() => dataService.FetchAllApiData(record.Branch, record.Organization, record.Ledger, ctx.PrevYearPeriod,      false, cancellationToken), cancellationToken);
+            var taskPrior = Task.Run(() => dataService.FetchAllApiData(record.Branch, record.Organization, record.Ledger, ctx.PrevYearPriorPeriod, false, cancellationToken), cancellationToken);
+            var taskPM    = Task.Run(() => dataService.FetchAllApiData(record.Branch, record.Organization, record.Ledger, ctx.PrevMonthPeriod,     false, cancellationToken), cancellationToken);
+            var taskJanCY = Task.Run(() => dataService.FetchJanuaryBeginningBalance(record.Branch, record.Organization, record.Ledger, ctx.CurrYear, cancellationToken), cancellationToken);
+            var taskJanPY = Task.Run(() => dataService.FetchJanuaryBeginningBalance(record.Branch, record.Organization, record.Ledger, ctx.PrevYear, cancellationToken), cancellationToken);
 
-            Task.WhenAll(taskCY, taskPY, taskPrior, taskPM, taskJanCY, taskJanPY).Wait();
+            Task.WhenAll(taskCY, taskPY, taskPrior, taskPM, taskJanCY, taskJanPY).Wait(cancellationToken);
 
             var engine = new ReportCalculationEngine(graph);
             return engine.CalculateAll(

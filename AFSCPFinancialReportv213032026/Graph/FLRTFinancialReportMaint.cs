@@ -206,7 +206,7 @@ namespace FinancialReport
 
                         // Instantiate and execute the new service
                         var generationService = new ReportGenerationService(reportGraph, dbRecord, authService);
-                        Guid generatedFileID = generationService.Execute();
+                        Guid generatedFileID = generationService.Execute(timeoutCancellation.Token);
 
                         // Check for cancellation before saving
                         timeoutCancellation.Token.ThrowIfCancellationRequested();

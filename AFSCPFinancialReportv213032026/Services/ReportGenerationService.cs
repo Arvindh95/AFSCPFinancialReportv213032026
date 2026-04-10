@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Text.RegularExpressions;
 using FinancialReport.Helper;
@@ -38,7 +39,7 @@ namespace FinancialReport.Services
         /// Executes the end-to-end report generation process with performance optimizations.
         /// </summary>
         /// <returns>The GUID of the newly generated and saved file.</returns>
-        public Guid Execute()
+        public Guid Execute(CancellationToken cancellationToken = default)
         {
             var totalStopwatch = System.Diagnostics.Stopwatch.StartNew();
 
@@ -155,22 +156,22 @@ namespace FinancialReport.Services
                 // 6. Fetch all required data from the API in parallel.
                 // Optional fetches (cumulative, PM) are skipped via Task.FromResult(null) when not needed,
                 // so the engine receives null and gracefully returns 0 for those balance types.
-                var taskCY      = Task.Run(() => localDataService.FetchAllApiData(_currentRecord.Branch, _currentRecord.Organization, _currentRecord.Ledger, selectedPeriod,      needsDetail));
-                var taskPY      = Task.Run(() => localDataService.FetchAllApiData(_currentRecord.Branch, _currentRecord.Organization, _currentRecord.Ledger, prevYearPeriod,      needsDetail));
-                var taskJanPY   = Task.Run(() => localDataService.FetchJanuaryBeginningBalance(_currentRecord.Branch, _currentRecord.Organization, _currentRecord.Ledger, prevYear));
-                var taskJanCY   = Task.Run(() => localDataService.FetchJanuaryBeginningBalance(_currentRecord.Branch, _currentRecord.Organization, _currentRecord.Ledger, currYear));
+                var taskCY      = Task.Run(() => localDataService.FetchAllApiData(_currentRecord.Branch, _currentRecord.Organization, _currentRecord.Ledger, selectedPeriod,      needsDetail, cancellationToken), cancellationToken);
+                var taskPY      = Task.Run(() => localDataService.FetchAllApiData(_currentRecord.Branch, _currentRecord.Organization, _currentRecord.Ledger, prevYearPeriod,      needsDetail, cancellationToken), cancellationToken);
+                var taskJanPY   = Task.Run(() => localDataService.FetchJanuaryBeginningBalance(_currentRecord.Branch, _currentRecord.Organization, _currentRecord.Ledger, prevYear, cancellationToken), cancellationToken);
+                var taskJanCY   = Task.Run(() => localDataService.FetchJanuaryBeginningBalance(_currentRecord.Branch, _currentRecord.Organization, _currentRecord.Ledger, currYear, cancellationToken), cancellationToken);
                 // Cumulative (Debit/Credit/Movement YTD): skip if no line uses those balance types
                 var taskRangeCY = needsCumulative
-                    ? Task.Run(() => localDataService.FetchRangeApiData(_currentRecord.Branch, _currentRecord.Organization, _currentRecord.Ledger, cyCumulativeStart, selectedPeriod))
+                    ? Task.Run(() => localDataService.FetchRangeApiData(_currentRecord.Branch, _currentRecord.Organization, _currentRecord.Ledger, cyCumulativeStart, selectedPeriod, cancellationToken), cancellationToken)
                     : Task.FromResult<FinancialApiData>(null);
                 var taskRangePY = needsCumulative
-                    ? Task.Run(() => localDataService.FetchRangeApiData(_currentRecord.Branch, _currentRecord.Organization, _currentRecord.Ledger, pyCumulativeStart, pyCumulativeEnd))
+                    ? Task.Run(() => localDataService.FetchRangeApiData(_currentRecord.Branch, _currentRecord.Organization, _currentRecord.Ledger, pyCumulativeStart, pyCumulativeEnd, cancellationToken), cancellationToken)
                     : Task.FromResult<FinancialApiData>(null);
                 // PY opening (EndingBalance of 2 years ago → PY fiscal-year opening for Beginning balance type)
-                var taskPrior   = Task.Run(() => localDataService.FetchAllApiData(_currentRecord.Branch, _currentRecord.Organization, _currentRecord.Ledger, prevYearPriorPeriod, needsDetail));
+                var taskPrior   = Task.Run(() => localDataService.FetchAllApiData(_currentRecord.Branch, _currentRecord.Organization, _currentRecord.Ledger, prevYearPriorPeriod, needsDetail, cancellationToken), cancellationToken);
                 // Previous month: skip if no _PM placeholder in template
                 var taskPM      = needsPM
-                    ? Task.Run(() => localDataService.FetchAllApiData(_currentRecord.Branch, _currentRecord.Organization, _currentRecord.Ledger, prevMonthPeriod, needsDetail))
+                    ? Task.Run(() => localDataService.FetchAllApiData(_currentRecord.Branch, _currentRecord.Organization, _currentRecord.Ledger, prevMonthPeriod, needsDetail, cancellationToken), cancellationToken)
                     : Task.FromResult<FinancialApiData>(null);
 
                 Task.WhenAll(taskCY, taskPY, taskJanPY, taskJanCY, taskRangeCY, taskRangePY, taskPrior, taskPM).Wait();

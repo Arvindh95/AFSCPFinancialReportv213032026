@@ -86,7 +86,7 @@ namespace FinancialReport.Services
 
                     PXTrace.WriteInformation($"[Slide] Periods — CY:{ctx.SelectedPeriod}, PY:{ctx.PrevYearPeriod}, PM:{ctx.PrevMonthPeriod}");
 
-                    results = ReportDataPipeline.FetchAndCalculate(ctx, _graph, _currentRecord, _authService, _tenantName);
+                    results = ReportDataPipeline.FetchAndCalculate(ctx, _graph, _currentRecord, _authService, _tenantName, cancellationToken);
                     PXTrace.WriteInformation($"[Slide] GL fetch + engine: {results.Count} values in {stopwatch.ElapsedMilliseconds}ms");
                 }
 
@@ -128,7 +128,8 @@ namespace FinancialReport.Services
                             ds, columns, year, month,
                             _currentRecord.Branch,
                             _currentRecord.Organization,
-                            _currentRecord.Ledger);
+                            _currentRecord.Ledger,
+                            cancellationToken);
 
                         foreach (var kv in dsResults)
                         {

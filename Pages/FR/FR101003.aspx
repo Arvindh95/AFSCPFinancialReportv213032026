@@ -86,7 +86,7 @@
 					<px:PXFormView runat="server" ID="fvMarkdown" DataMember="PresentationRecord" DataSourceID="ds" Width="100%">
 						<Template>
 							<px:PXTextEdit runat="server" ID="edPresentationMarkdown" DataField="PresentationMarkdown"
-								TextMode="MultiLine" Height="400px" Width="100%" />
+								TextMode="MultiLine" Height="400" />
 						</Template>
 					</px:PXFormView>
 				</Template>

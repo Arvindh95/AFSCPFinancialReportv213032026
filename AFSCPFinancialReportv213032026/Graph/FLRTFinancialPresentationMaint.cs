@@ -127,6 +127,9 @@ namespace FinancialReport
             {
                 var presentationGraph = PXGraph.CreateInstance<FLRTFinancialPresentationMaint>();
                 FLRTPresentationGeneration dbRecord = null;
+                var timeoutCancellation = new System.Threading.CancellationTokenSource();
+                const int timeoutMinutes = 15;
+                timeoutCancellation.CancelAfter(TimeSpan.FromMinutes(timeoutMinutes));
 
                 try
                 {
@@ -139,7 +142,7 @@ namespace FinancialReport
                     authService.AuthenticateAndGetToken();
 
                     var slideService = new SlideGenerationService(presentationGraph, dbRecord, authService, tenantName);
-                    Guid fileID = slideService.BuildMarkdownPreview();
+                    Guid fileID = slideService.BuildMarkdownPreview(timeoutCancellation.Token);
 
                     dbRecord.PresentationMarkdown = slideService.LastGeneratedMarkdown;
 
@@ -147,6 +150,11 @@ namespace FinancialReport
                     presentationGraph.Actions.PressSave();
 
                     PXTrace.WriteInformation($"[Slide] Markdown preview saved. FileID={fileID}");
+                }
+                catch (OperationCanceledException)
+                {
+                    PXTrace.WriteError($"[Slide] Markdown preview timed out after {timeoutMinutes} minutes");
+                    throw new PXException(Messages.PresentationGenerationTimeout, timeoutMinutes);
                 }
                 catch (Exception ex)
                 {
@@ -156,6 +164,7 @@ namespace FinancialReport
                 finally
                 {
                     if (authService?.IsAuthenticated == true) authService.Logout();
+                    timeoutCancellation?.Dispose();
                 }
             });
 
@@ -204,6 +213,9 @@ namespace FinancialReport
             {
                 var presentationGraph = PXGraph.CreateInstance<FLRTFinancialPresentationMaint>();
                 FLRTPresentationGeneration dbRecord = null;
+                var timeoutCancellation = new System.Threading.CancellationTokenSource();
+                const int timeoutMinutes = 15;
+                timeoutCancellation.CancelAfter(TimeSpan.FromMinutes(timeoutMinutes));
 
                 try
                 {
@@ -226,11 +238,13 @@ namespace FinancialReport
                         authService.AuthenticateAndGetToken();
                         PXTrace.WriteInformation($"[Gamma] Authenticated for {tenantName}.");
                         var slideService = new SlideGenerationService(presentationGraph, dbRecord, authService, tenantName);
-                        slideService.BuildMarkdownPreview();
+                        slideService.BuildMarkdownPreview(timeoutCancellation.Token);
                         markdown = slideService.LastGeneratedMarkdown;
 
                         dbRecord.PresentationMarkdown = markdown;
                     }
+
+                    timeoutCancellation.Token.ThrowIfCancellationRequested();
 
                     string slideTitle = !string.IsNullOrWhiteSpace(dbRecord.PresentationTitle)
                         ? dbRecord.PresentationTitle
@@ -263,6 +277,17 @@ namespace FinancialReport
 
                     PXTrace.WriteInformation($"[Gamma] Done. FileID: {fileID}");
                 }
+                catch (OperationCanceledException)
+                {
+                    PXTrace.WriteError($"[Gamma] Presentation generation timed out after {timeoutMinutes} minutes");
+                    if (dbRecord != null)
+                    {
+                        dbRecord.SlideStatus = ReportStatus.Failed;
+                        presentationGraph.PresentationRecord.Update(dbRecord);
+                        try { presentationGraph.Actions.PressSave(); } catch { }
+                    }
+                    throw new PXException(Messages.PresentationGenerationTimeout, timeoutMinutes);
+                }
                 catch (Exception ex)
                 {
                     PXTrace.WriteError($"[Gamma] Generation failed: {ex}");
@@ -277,6 +302,7 @@ namespace FinancialReport
                 finally
                 {
                     if (authService?.IsAuthenticated == true) authService.Logout();
+                    timeoutCancellation?.Dispose();
                 }
             });
 

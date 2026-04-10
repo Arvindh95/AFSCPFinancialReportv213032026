@@ -74,6 +74,7 @@ namespace FinancialReport
         public const string FailedToSaveMessage = "Failed to save: {0}";
         public const string TooManyPlaceholders = "Template contains {0} placeholders. Maximum allowed is {1}. Please simplify your template or split it into multiple reports.";
         public const string ReportGenerationTimeout = "Report generation timed out after {0} minutes. Please check template complexity or contact support.";
+        public const string PresentationGenerationTimeout = "Presentation generation timed out after {0} minutes. Please check data volume or contact support.";
         public const string WordDocumentMainPartNull = "Word document main part is null.";
 
         // ==================================================
