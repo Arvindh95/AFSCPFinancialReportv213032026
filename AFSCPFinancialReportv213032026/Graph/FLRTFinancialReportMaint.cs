@@ -136,7 +136,7 @@ namespace FinancialReport
         public PXAction<FLRTFinancialReport> DownloadReport = null!; // Initialized by PXGraph framework
         public PXAction<FLRTFinancialReport> ResetStatus = null!; // Initialized by PXGraph framework
 
-        [PXButton(CommitChanges = false, ImageKey = "RecordAdd", ImageSet = "main", Tooltip = "Generate Report", Connotation = ActionConnotation.Success)]
+        [PXButton(CommitChanges = false, Tooltip = "Generate Report", Connotation = ActionConnotation.Success)]
         [PXUIField(DisplayName = "Generate Report", MapEnableRights = PXCacheRights.Update, Visible = true)]
         protected virtual System.Collections.IEnumerable generateReport(PXAdapter adapter)
         {
@@ -281,7 +281,7 @@ namespace FinancialReport
             return adapter.Get();
         }
 
-        [PXButton(ImageKey = "DataEntryF", ImageSet = "main", Tooltip = "Download Report", Connotation = ActionConnotation.Info)]
+        [PXButton(Tooltip = "Download Report", Connotation = ActionConnotation.Info)]
         [PXUIField(DisplayName = "Download Report", MapEnableRights = PXCacheRights.Select, Visible = true)]
         protected virtual System.Collections.IEnumerable downloadReport(PXAdapter adapter)
         {
@@ -296,7 +296,7 @@ namespace FinancialReport
             throw new PXRedirectToFileException(selectedRecord.GeneratedFileID.Value, true);
         }
 
-        [PXButton(CommitChanges = true, ImageKey = "Refresh", ImageSet = "main", Tooltip = "Reset Status", Connotation = ActionConnotation.Danger)]
+        [PXButton(CommitChanges = true, Tooltip = "Reset Status", Connotation = ActionConnotation.Danger)]
         [PXUIField(DisplayName = "Reset Status", MapEnableRights = PXCacheRights.Update, Visible = true)]
         protected virtual System.Collections.IEnumerable resetStatus(PXAdapter adapter)
         {

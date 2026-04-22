@@ -199,9 +199,9 @@ namespace FinancialReport.Services
                         break;
 
                     case FLRTReportLineItem.LineItemType.Subtotal:
-                        cyVal = CalculateSubtotal(node.Line.LineCode, node.DefinitionID, node.Prefix, _cyGlobal, childrenByParent);
-                        pyVal = CalculateSubtotal(node.Line.LineCode, node.DefinitionID, node.Prefix, _pyGlobal, childrenByParent);
-                        pmVal = CalculateSubtotal(node.Line.LineCode, node.DefinitionID, node.Prefix, _pmGlobal, childrenByParent);
+                        cyVal = CalculateSubtotal(node.Line.LineCode, node.DefinitionID, _cyGlobal, childrenByParent);
+                        pyVal = CalculateSubtotal(node.Line.LineCode, node.DefinitionID, _pyGlobal, childrenByParent);
+                        pmVal = CalculateSubtotal(node.Line.LineCode, node.DefinitionID, _pmGlobal, childrenByParent);
                         break;
 
                     case FLRTReportLineItem.LineItemType.Calculated:
@@ -751,7 +751,6 @@ namespace FinancialReport.Services
         private decimal CalculateSubtotal(
             string subtotalLineCode,
             int definitionID,
-            string prefix,
             Dictionary<string, decimal> globalValues,
             Dictionary<string, List<LineNode>> childrenByParent)
         {

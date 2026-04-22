@@ -26,7 +26,6 @@ namespace FinancialReport.Services
                 var normalizedData = new Dictionary<string, string>(data, StringComparer.OrdinalIgnoreCase);
 
                 var placeholdersInDoc = ExtractPlaceholders(templatePath);
-                ExtractPlaceholderKeys(templatePath);
 
                 foreach (string placeholderWithBraces in placeholdersInDoc)
                 {
@@ -86,18 +85,6 @@ namespace FinancialReport.Services
                     PXTrace.WriteError($"Error processing paragraph in Word document: {ex.Message}");
                 }
             }
-        }
-
-        public List<string> ExtractPlaceholderKeys(string templatePath)
-        {
-            var rawPlaceholders = ExtractPlaceholders(templatePath);
-            var keys = rawPlaceholders
-                .Select(p => p.Trim('{', '}'))
-                .Where(p => !string.IsNullOrWhiteSpace(p))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-            return keys;
         }
 
         private HashSet<string> ExtractPlaceholders(string templatePath)

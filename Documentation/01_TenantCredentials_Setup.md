@@ -27,16 +27,16 @@ Click the **+** button in the toolbar to add a new row.
 
 ### 3. Fill in Each Column
 
-| Column | What to Enter | Example |
-|---|---|---|
-| Tenant Name | Your Acumatica tenant name. Must match the tenant in the URL. | `SalesDemo` |
-| Base URL | Root URL of your Acumatica instance. No trailing slash. | `http://localhost/2025R2` |
-| Company Number | The internal company number. Find it in System > Manage > Companies. | `2` |
-| Client ID | OAuth2 Client ID from your Connected Application. | `A1B2C3D4-E5F6-...` |
-| Client Secret | OAuth2 Client Secret from your Connected Application. | `secretvalue123` |
-| Username | API user account username. | `apiuser` |
-| Password | API user account password. | `P@ssw0rd` |
-| Presentation API Key | Gamma API key. Only needed for FR101003. Leave blank if not using presentations. | `gamma_key_abc123` |
+| Column               | What to Enter                                                                    | Example                     |
+| -------------------- | -------------------------------------------------------------------------------- | --------------------------- |
+| Tenant Name          | Your Acumatica tenant name. Must match the tenant in the URL.                    | `SalesDemo`               |
+| Base URL             | Root URL of your Acumatica instance. No trailing slash.                          | `http://localhost/2025R2` |
+| Company Number       | The internal company number. Find it in System > Manage > Companies.             | `2`                       |
+| Client ID            | OAuth2 Client ID from your Connected Application.                                | `A1B2C3D4-E5F6-...`       |
+| Client Secret        | OAuth2 Client Secret from your Connected Application.                            | `secretvalue123`          |
+| Username             | API user account username.                                                       | `apiuser`                 |
+| Password             | API user account password.                                                       | `P@ssw0rd`                |
+| Presentation API Key | Gamma API key. Only needed for FR101003. Leave blank if not using presentations. | `gamma_key_abc123`        |
 
 ### 4. Save
 
@@ -53,17 +53,6 @@ Click **Save** in the toolbar.
    - OAuth 2.0 Flow: `Resource Owner Password Credentials`
 4. Save — the system generates a Client ID and Client Secret
 5. Copy both values into FR101001
-
----
-
-## How to Get a Gamma API Key
-
-1. Go to [gamma.app](https://gamma.app) and sign in
-2. Navigate to account/API settings
-3. Generate a new API key
-4. Copy it into the **Presentation API Key** column in FR101001
-
----
 
 ## Security Notes
 
@@ -84,8 +73,8 @@ Click **Save** in the toolbar.
 
 ## Example: Complete Row
 
-| Tenant Name | Base URL | Company Number | Client ID | Client Secret | Username | Password | Presentation API Key |
-|---|---|---|---|---|---|---|---|
-| SalesDemo | http://localhost/2025R2 | 2 | ******** | ******** | ******** | ******** | ******** |
+| Tenant Name | Base URL                | Company Number | Client ID | Client Secret | Username | Password | Presentation API Key |
+| ----------- | ----------------------- | -------------- | --------- | ------------- | -------- | -------- | -------------------- |
+| SalesDemo   | http://localhost/2025R2 | 2              | ********  | ********      | ******** | ******** | ********             |
 
 (Values are masked after save for security)

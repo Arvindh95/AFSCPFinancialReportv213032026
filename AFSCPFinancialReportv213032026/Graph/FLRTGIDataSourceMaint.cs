@@ -217,6 +217,10 @@ namespace FinancialReport
         [PXUIField(DisplayName = "Detect Columns")]
         public virtual IEnumerable detectColumns(PXAdapter adapter)
         {
+            // Re-entry after user dismissed the dialog — just return
+            if (DataSource.View.Answer != WebDialogResult.None)
+                return adapter.Get();
+
             var ds = DataSource.Current;
             if (ds == null) return adapter.Get();
 

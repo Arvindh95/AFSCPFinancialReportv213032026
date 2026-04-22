@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Text.RegularExpressions;
+
 using FinancialReport.Helper;
 using PX.Data;
 using PX.Data.BQL;
@@ -45,6 +45,7 @@ namespace FinancialReport.Services
 
             string templatePath = null;
             string outputPath = null;
+            System.Threading.SemaphoreSlim fetchGate = null;
 
             try
             {
@@ -73,16 +74,9 @@ namespace FinancialReport.Services
                 string extension = Path.GetExtension(originalFileName) ?? ".docx";
                 templatePath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + extension);
                 File.WriteAllBytes(templatePath, templateFileContent);
+                templateFileContent = null; // Free template bytes before the long fetch phase
 
-                // 3. Extract Placeholders
-                List<string> extractedKeys = _wordTemplateService.ExtractPlaceholderKeys(templatePath);
-
-                // 3b. Determine which optional API fetches are actually needed.
-                // PM: check template for any _PM placeholder (e.g. {{BS_REVENUE_PM}})
-                bool needsPM = extractedKeys.Any(k =>
-                    k.EndsWith("_" + Constants.PreviousMonthSuffix, StringComparison.OrdinalIgnoreCase));
-
-                // Detail rows + Cumulative: scan line items from all linked definitions.
+                // 3. Determine which optional API fetches are actually needed from line items.
                 // - needsDetail     → at least one line has a dimension filter (Sub/Branch/Org/Ledger)
                 // - needsCumulative → at least one line uses Debit/Credit/Movement (YTD) balance type
                 bool needsDetail     = false;
@@ -114,18 +108,9 @@ namespace FinancialReport.Services
                     if (needsDetail && needsCumulative) break;
                 }
 
-                PXTrace.WriteInformation($"API fetch flags — needsDetail={needsDetail}, needsCumulative={needsCumulative}, needsPM={needsPM}");
+                PXTrace.WriteInformation($"API fetch flags — needsDetail={needsDetail}, needsCumulative={needsCumulative}");
 
-                // 4. Separate ALL placeholder types (wildcard, exact range, regular)
-                var (wildcardRangePlaceholders, exactRangePlaceholders, regularPlaceholders) =
-                    localDataService.SeparateAllPlaceholderTypes(extractedKeys);
-
-                PXTrace.WriteInformation($"[Step 4] Extracted {extractedKeys.Count} total placeholders:");
-                PXTrace.WriteInformation($"   wildcard range: {wildcardRangePlaceholders.Count} (A????:B????_e_CY)");
-                PXTrace.WriteInformation($"   exact range:    {exactRangePlaceholders.Count} (A74101:A75101_e_CY)");
-                PXTrace.WriteInformation($"   regular:        {regularPlaceholders.Count} (A74101_CY)");
-
-                // 5. Set up Parameters — reuse period strings from pipeline context
+                // 4. Set up Parameters — reuse period strings from pipeline context
                 string currYear            = pipelineCtx.CurrYear;
                 string prevYear            = pipelineCtx.PrevYear;
                 string selectedPeriod      = pipelineCtx.SelectedPeriod;
@@ -153,26 +138,26 @@ namespace FinancialReport.Services
 
                 PXTrace.WriteInformation($"Fiscal year: {cyCumulativeStart} → {selectedPeriod} (CY), {pyCumulativeStart} → {pyCumulativeEnd} (PY)");
 
-                // 6. Fetch all required data from the API in parallel.
-                // Optional fetches (cumulative, PM) are skipped via Task.FromResult(null) when not needed,
+                // 6. Fetch all required data from the API in parallel — gated by SemaphoreSlim(3)
+                // to cap peak memory at ~3 concurrent JToken result sets instead of 8.
+                // Optional fetches (cumulative) are skipped via Task.FromResult(null) when not needed,
                 // so the engine receives null and gracefully returns 0 for those balance types.
-                var taskCY      = Task.Run(() => localDataService.FetchAllApiData(_currentRecord.Branch, _currentRecord.Organization, _currentRecord.Ledger, selectedPeriod,      needsDetail, cancellationToken), cancellationToken);
-                var taskPY      = Task.Run(() => localDataService.FetchAllApiData(_currentRecord.Branch, _currentRecord.Organization, _currentRecord.Ledger, prevYearPeriod,      needsDetail, cancellationToken), cancellationToken);
-                var taskJanPY   = Task.Run(() => localDataService.FetchJanuaryBeginningBalance(_currentRecord.Branch, _currentRecord.Organization, _currentRecord.Ledger, prevYear, cancellationToken), cancellationToken);
-                var taskJanCY   = Task.Run(() => localDataService.FetchJanuaryBeginningBalance(_currentRecord.Branch, _currentRecord.Organization, _currentRecord.Ledger, currYear, cancellationToken), cancellationToken);
+                fetchGate = new System.Threading.SemaphoreSlim(3, 3);
+                var taskCY      = Task.Run(async () => { await fetchGate.WaitAsync(cancellationToken); try { return localDataService.FetchAllApiData(_currentRecord.Branch, _currentRecord.Organization, _currentRecord.Ledger, selectedPeriod,      needsDetail, cancellationToken); } finally { fetchGate.Release(); } }, cancellationToken);
+                var taskPY      = Task.Run(async () => { await fetchGate.WaitAsync(cancellationToken); try { return localDataService.FetchAllApiData(_currentRecord.Branch, _currentRecord.Organization, _currentRecord.Ledger, prevYearPeriod,      needsDetail, cancellationToken); } finally { fetchGate.Release(); } }, cancellationToken);
+                var taskJanPY   = Task.Run(async () => { await fetchGate.WaitAsync(cancellationToken); try { return localDataService.FetchJanuaryBeginningBalance(_currentRecord.Branch, _currentRecord.Organization, _currentRecord.Ledger, prevYear, cancellationToken); } finally { fetchGate.Release(); } }, cancellationToken);
+                var taskJanCY   = Task.Run(async () => { await fetchGate.WaitAsync(cancellationToken); try { return localDataService.FetchJanuaryBeginningBalance(_currentRecord.Branch, _currentRecord.Organization, _currentRecord.Ledger, currYear, cancellationToken); } finally { fetchGate.Release(); } }, cancellationToken);
                 // Cumulative (Debit/Credit/Movement YTD): skip if no line uses those balance types
                 var taskRangeCY = needsCumulative
-                    ? Task.Run(() => localDataService.FetchRangeApiData(_currentRecord.Branch, _currentRecord.Organization, _currentRecord.Ledger, cyCumulativeStart, selectedPeriod, cancellationToken), cancellationToken)
+                    ? Task.Run(async () => { await fetchGate.WaitAsync(cancellationToken); try { return localDataService.FetchRangeApiData(_currentRecord.Branch, _currentRecord.Organization, _currentRecord.Ledger, cyCumulativeStart, selectedPeriod, cancellationToken); } finally { fetchGate.Release(); } }, cancellationToken)
                     : Task.FromResult<FinancialApiData>(null);
                 var taskRangePY = needsCumulative
-                    ? Task.Run(() => localDataService.FetchRangeApiData(_currentRecord.Branch, _currentRecord.Organization, _currentRecord.Ledger, pyCumulativeStart, pyCumulativeEnd, cancellationToken), cancellationToken)
+                    ? Task.Run(async () => { await fetchGate.WaitAsync(cancellationToken); try { return localDataService.FetchRangeApiData(_currentRecord.Branch, _currentRecord.Organization, _currentRecord.Ledger, pyCumulativeStart, pyCumulativeEnd, cancellationToken); } finally { fetchGate.Release(); } }, cancellationToken)
                     : Task.FromResult<FinancialApiData>(null);
                 // PY opening (EndingBalance of 2 years ago → PY fiscal-year opening for Beginning balance type)
-                var taskPrior   = Task.Run(() => localDataService.FetchAllApiData(_currentRecord.Branch, _currentRecord.Organization, _currentRecord.Ledger, prevYearPriorPeriod, needsDetail, cancellationToken), cancellationToken);
-                // Previous month: skip if no _PM placeholder in template
-                var taskPM      = needsPM
-                    ? Task.Run(() => localDataService.FetchAllApiData(_currentRecord.Branch, _currentRecord.Organization, _currentRecord.Ledger, prevMonthPeriod, needsDetail, cancellationToken), cancellationToken)
-                    : Task.FromResult<FinancialApiData>(null);
+                var taskPrior   = Task.Run(async () => { await fetchGate.WaitAsync(cancellationToken); try { return localDataService.FetchAllApiData(_currentRecord.Branch, _currentRecord.Organization, _currentRecord.Ledger, prevYearPriorPeriod, needsDetail, cancellationToken); } finally { fetchGate.Release(); } }, cancellationToken);
+                // Previous month: always fetched — engine produces _PM placeholders for all visible line items
+                var taskPM      = Task.Run(async () => { await fetchGate.WaitAsync(cancellationToken); try { return localDataService.FetchAllApiData(_currentRecord.Branch, _currentRecord.Organization, _currentRecord.Ledger, prevMonthPeriod, needsDetail, cancellationToken); } finally { fetchGate.Release(); } }, cancellationToken);
 
                 Task.WhenAll(taskCY, taskPY, taskJanPY, taskJanCY, taskRangeCY, taskRangePY, taskPrior, taskPM).Wait();
 
@@ -183,42 +168,16 @@ namespace FinancialReport.Services
                 var cumulativeCYData      = taskRangeCY.Result; // null when needsCumulative=false
                 var cumulativePYData      = taskRangePY.Result; // null when needsCumulative=false
                 var prevYearPriorData     = taskPrior.Result;
-                var prevMonthData         = taskPM.Result;      // null when needsPM=false
+                var prevMonthData         = taskPM.Result;
 
-                int fetchCount = 6 + (needsCumulative ? 2 : 0) + (needsPM ? 1 : 0);
-                PXTrace.WriteInformation($"[Step 7] {fetchCount} API calls completed (skipped: cumulative={!needsCumulative}, PM={!needsPM}) — prevMonth: {prevMonthPeriod}");
+                int fetchCount = 7 + (needsCumulative ? 2 : 0);
+                PXTrace.WriteInformation($"[Step 5] {fetchCount} API calls completed (skipped: cumulative={!needsCumulative}) — prevMonth: {prevMonthPeriod}");
 
-                // 7. Set up user settings for analysis
-                var userSettings = new UserSettings
-                {
-                    Branch = _currentRecord.Branch,
-                    Organization = _currentRecord.Organization,
-                    Ledger = _currentRecord.Ledger
-                };
-
-                // 8. Process regular placeholders using existing logic
-                var regularPlaceholderRequests = localDataService.AnalyzePlaceholders(regularPlaceholders, selectedPeriod, prevYearPeriod, userSettings);
-                var regularPlaceholderValues = localDataService.ProcessPlaceholdersFromFetchedData(
-                    regularPlaceholderRequests, currYearData, prevYearData, januaryBeginningDataCY,
-                    januaryBeginningDataPY, cumulativeCYData, cumulativePYData);
-
-                // 9. Process exact range placeholders
-                var exactRangePlaceholderValues = localDataService.ProcessAccountRangePlaceholders(
-                    exactRangePlaceholders, currYearData, prevYearData, januaryBeginningDataCY,
-                    januaryBeginningDataPY, cumulativeCYData, cumulativePYData);
-
-                // 10. Process wildcard range placeholders
-                var wildcardRangePlaceholderValues = localDataService.ProcessWildcardRangePlaceholders(
-                    wildcardRangePlaceholders, currYearData, prevYearData, januaryBeginningDataCY,
-                    januaryBeginningDataPY, cumulativeCYData, cumulativePYData);
-
-                // 11. Combine all placeholder values
+                // 6. Run ReportCalculationEngine for all linked definitions.
+                // Produces PREFIX_LINECODE_CY / PREFIX_LINECODE_PY / PREFIX_LINECODE_PM placeholders.
+                // Cross-definition formulas are resolved via topological sort.
                 var finalPlaceholders = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-                // ── Run ReportCalculationEngine for all linked definitions.
-                // Produces PREFIX_LINECODE_CY / PREFIX_LINECODE_PY placeholders.
-                // Cross-definition formulas are resolved via topological sort.
-                // Engine values take priority over raw account placeholders.
                 if (definitionLinks.Any())
                 {
                     PXTrace.WriteInformation($"Running ReportCalculationEngine for {definitionLinks.Count} definition(s).");
@@ -241,34 +200,22 @@ namespace FinancialReport.Services
                     PXTrace.WriteInformation($"ReportCalculationEngine produced {enginePlaceholders.Count} placeholders.");
                 }
 
-                // ── LEGACY: Raw account-code placeholders for anything not covered by the definition.
-                // Preserves backward compatibility with existing templates that use {{A10100_CY}} syntax.
-                foreach (var kvp in regularPlaceholderValues)
-                {
-                    if (!finalPlaceholders.ContainsKey(kvp.Key))
-                        finalPlaceholders.Add(kvp.Key, kvp.Value);
-                }
-
-                foreach (var kvp in exactRangePlaceholderValues)
-                {
-                    if (!finalPlaceholders.ContainsKey(kvp.Key))
-                        finalPlaceholders.Add(kvp.Key, kvp.Value);
-                }
-
-                foreach (var kvp in wildcardRangePlaceholderValues)
-                {
-                    if (!finalPlaceholders.ContainsKey(kvp.Key))
-                        finalPlaceholders.Add(kvp.Key, kvp.Value);
-                }
-
                 // Add year constants
                 finalPlaceholders[Constants.CurrentYearSuffix] = currYear;
                 finalPlaceholders[Constants.PreviousYearSuffix] = prevYear;
 
-                PXTrace.WriteInformation($"[Step 12] Final placeholder count: {finalPlaceholders.Count}");
-                PXTrace.WriteInformation($"   regular:        {regularPlaceholderValues.Count}");
-                PXTrace.WriteInformation($"   exact range:    {exactRangePlaceholderValues.Count}");
-                PXTrace.WriteInformation($"   wildcard range: {wildcardRangePlaceholderValues.Count}");
+                PXTrace.WriteInformation($"[Step 7] Final placeholder count: {finalPlaceholders.Count}");
+
+                // Free API data — no longer needed after engine run.
+                // Lets GC reclaim the large FinancialApiData objects before Word template processing.
+                currYearData = null;
+                prevYearData = null;
+                prevYearPriorData = null;
+                prevMonthData = null;
+                januaryBeginningDataCY = null;
+                januaryBeginningDataPY = null;
+                cumulativeCYData = null;
+                cumulativePYData = null;
 
                 // 12. Populate Word Template
                 string outputFileName = $"{_currentRecord.ReportCD}_Generated_{DateTime.Now:yyyyMMdd_HHmmssfff}{extension}";
@@ -278,6 +225,7 @@ namespace FinancialReport.Services
                 // 12. Save Generated File and return its ID
                 byte[] generatedFileContent = File.ReadAllBytes(outputPath);
                 var fileId = _fileService.SaveGeneratedDocument(outputFileName, generatedFileContent, _currentRecord);
+                generatedFileContent = null; // Free generated file bytes immediately
 
                 totalStopwatch.Stop();
                 PXTrace.WriteInformation($"Total report generation completed in {totalStopwatch.ElapsedMilliseconds} ms");
@@ -321,6 +269,9 @@ namespace FinancialReport.Services
 
                 // Clear credential cache after report generation completes
                 CredentialProvider.ClearCache();
+
+                // Dispose the fetch semaphore
+                fetchGate?.Dispose();
             }
         }
 
