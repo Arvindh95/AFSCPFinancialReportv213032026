@@ -118,12 +118,12 @@ namespace FinancialReport.Services
                     result = await PaginatedFetchAsync(modernUrl, filter, null, accessToken, errors, cancellationToken);
                     if (result != null) return (result, errors);
 
-                    // Attempt 3: Modern URL, no filter, no $select (last resort)
-                    result = await PaginatedFetchAsync(modernUrl, null, null, accessToken, errors, cancellationToken);
+                    // Attempt 3: Legacy URL + filter + $select
+                    result = await PaginatedFetchAsync(legacyUrl, filter, selectColumns, accessToken, errors, cancellationToken);
                     if (result != null) return (result, errors);
 
-                    // Attempt 4: Legacy URL, no filter, no $select
-                    result = await PaginatedFetchAsync(legacyUrl, null, null, accessToken, errors, cancellationToken);
+                    // Attempt 4: Legacy URL + filter, NO $select
+                    result = await PaginatedFetchAsync(legacyUrl, filter, null, accessToken, errors, cancellationToken);
                     return (result, errors);
                 }, cancellationToken);
                 task.Wait(cancellationToken);
@@ -169,14 +169,13 @@ namespace FinancialReport.Services
                 results[col.ColumnAlias] = value;
             }
 
-            // Resolve CALCULATED columns
+            // Resolve CALCULATED columns — topological sort so cross-references work regardless of SortOrder
             var calculatedColumns = columns
                 .Where(c => c.LineType == FLRTGIDataSourceColumn.ColumnLineType.Calculated
                          && !string.IsNullOrWhiteSpace(c.Formula))
-                .OrderBy(c => c.SortOrder)
                 .ToList();
 
-            foreach (var calc in calculatedColumns)
+            foreach (var calc in TopoSortCalculated(calculatedColumns))
             {
                 decimal formulaResult = EvaluateFormula(calc.Formula, results);
                 results[calc.ColumnAlias] = formulaResult;
@@ -208,6 +207,14 @@ namespace FinancialReport.Services
 
                 PXTrace.WriteInformation($"[GIDataFetch] MultiRow '{col.ColumnAlias}': {filteredRows.Count} rows (limit={limit}).");
 
+                // Parse DisplayColumns filter once — null/empty means emit all columns
+                var displayColSet = string.IsNullOrWhiteSpace(col.DisplayColumns)
+                    ? null
+                    : new HashSet<string>(
+                        col.DisplayColumns.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
+                           .Select(s => s.Trim()),
+                        StringComparer.OrdinalIgnoreCase);
+
                 for (int i = 0; i < filteredRows.Count; i++)
                 {
                     int rank = i + 1;
@@ -215,6 +222,7 @@ namespace FinancialReport.Services
                     foreach (var prop in rowObj.Properties())
                     {
                         if (prop.Name.StartsWith("odata", StringComparison.OrdinalIgnoreCase)) continue;
+                        if (displayColSet != null && !displayColSet.Contains(prop.Name)) continue;
                         string key = $"{col.ColumnAlias}_{rank}_{prop.Name}";
                         results[key] = prop.Value?.ToString() ?? "";
                     }
@@ -425,21 +433,21 @@ namespace FinancialReport.Services
 
         /// <summary>
         /// Applies client-side row filters. Supports multiple conditions joined by "and".
-        /// Each condition: "Column eq 'Value'" or "Column ne 'Value'".
-        /// Example: "Status eq 'Open' and Branch eq 'HEADOFFICE'"
+        /// Operators: eq, ne, gt, lt, ge, le, contains.
+        /// Example: "Status eq 'Open' and Amount gt '1000' and Name contains 'Smith'"
         /// </summary>
         private List<JToken> ApplyRowFilter(List<JToken> rows, string rowFilter)
         {
             if (string.IsNullOrWhiteSpace(rowFilter)) return rows;
 
-            // Split on " and " (case-insensitive)
             var conditions = Regex.Split(rowFilter.Trim(), @"\s+and\s+", RegexOptions.IgnoreCase);
             var parsedConditions = new List<(string column, string op, string value)>();
 
             foreach (var condition in conditions)
             {
-                // Support eq and ne operators
-                var match = Regex.Match(condition.Trim(), @"^(\S+)\s+(eq|ne)\s+'?([^']*)'?$", RegexOptions.IgnoreCase);
+                var match = Regex.Match(condition.Trim(),
+                    @"^(\S+)\s+(eq|ne|gt|lt|ge|le|contains)\s+'?([^']*)'?$",
+                    RegexOptions.IgnoreCase);
                 if (!match.Success)
                 {
                     PXTrace.WriteWarning($"[GIDataFetch] RowFilter condition '{condition}' not parseable — skipping.");
@@ -455,9 +463,27 @@ namespace FinancialReport.Services
                 foreach (var (column, op, value) in parsedConditions)
                 {
                     string actual = row[column]?.ToString()?.Trim() ?? "";
-                    bool equals = string.Equals(actual, value, StringComparison.OrdinalIgnoreCase);
-                    if (op == "eq" && !equals) return false;
-                    if (op == "ne" && equals) return false;
+
+                    if (op == "eq") { if (!string.Equals(actual, value, StringComparison.OrdinalIgnoreCase)) return false; }
+                    else if (op == "ne") { if (string.Equals(actual, value, StringComparison.OrdinalIgnoreCase)) return false; }
+                    else if (op == "contains") { if (actual.IndexOf(value, StringComparison.OrdinalIgnoreCase) < 0) return false; }
+                    else
+                    {
+                        // Numeric comparison for gt/lt/ge/le
+                        bool numericA = decimal.TryParse(actual, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal dA);
+                        bool numericV = decimal.TryParse(value,  NumberStyles.Any, CultureInfo.InvariantCulture, out decimal dV);
+
+                        int cmp;
+                        if (numericA && numericV)
+                            cmp = dA.CompareTo(dV);
+                        else
+                            cmp = string.Compare(actual, value, StringComparison.OrdinalIgnoreCase);
+
+                        if (op == "gt" && !(cmp >  0)) return false;
+                        if (op == "lt" && !(cmp <  0)) return false;
+                        if (op == "ge" && !(cmp >= 0)) return false;
+                        if (op == "le" && !(cmp <= 0)) return false;
+                    }
                 }
                 return true;
             }).ToList();
@@ -516,6 +542,8 @@ namespace FinancialReport.Services
                     return values.Max();
                 case FLRTGIDataSourceColumn.AggregateFunctionType.Min:
                     return values.Min();
+                case FLRTGIDataSourceColumn.AggregateFunctionType.Avg:
+                    return values.Count > 0 ? values.Sum() / values.Count : 0m;
                 case FLRTGIDataSourceColumn.AggregateFunctionType.First:
                     return values.FirstOrDefault();
                 default:
@@ -574,9 +602,22 @@ namespace FinancialReport.Services
 
         private string AggregateString(List<JToken> rows, string column, string aggFunc)
         {
-            // String only supports First
-            var first = rows.FirstOrDefault();
-            return first?[column]?.ToString() ?? "";
+            switch (aggFunc)
+            {
+                case FLRTGIDataSourceColumn.AggregateFunctionType.First:
+                default:
+                    return rows.FirstOrDefault()?[column]?.ToString() ?? "";
+                case FLRTGIDataSourceColumn.AggregateFunctionType.Count:
+                    return rows.Count.ToString();
+                case FLRTGIDataSourceColumn.AggregateFunctionType.Max:
+                    return rows.Select(r => r[column]?.ToString() ?? "")
+                               .OrderByDescending(s => s, StringComparer.OrdinalIgnoreCase)
+                               .FirstOrDefault() ?? "";
+                case FLRTGIDataSourceColumn.AggregateFunctionType.Min:
+                    return rows.Select(r => r[column]?.ToString() ?? "")
+                               .OrderBy(s => s, StringComparer.OrdinalIgnoreCase)
+                               .FirstOrDefault() ?? "";
+            }
         }
 
         private object GetDefaultValue(string colType)
@@ -599,6 +640,66 @@ namespace FinancialReport.Services
         #endregion
 
         #region Formula Evaluation
+
+        /// <summary>
+        /// Topologically sorts CALCULATED columns so each formula is evaluated only after
+        /// all aliases it references are already resolved. Falls back to SortOrder on tie.
+        /// Throws if a circular dependency is detected.
+        /// </summary>
+        private List<FLRTGIDataSourceColumn> TopoSortCalculated(List<FLRTGIDataSourceColumn> cols)
+        {
+            var aliasSet = new HashSet<string>(cols.Select(c => c.ColumnAlias), StringComparer.OrdinalIgnoreCase);
+            var deps = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var col in cols)
+            {
+                var referenced = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                if (!string.IsNullOrWhiteSpace(col.Formula))
+                {
+                    foreach (Match m in Regex.Matches(col.Formula, @"[A-Za-z_][A-Za-z0-9_]*"))
+                    {
+                        if (aliasSet.Contains(m.Value) &&
+                            !string.Equals(m.Value, col.ColumnAlias, StringComparison.OrdinalIgnoreCase))
+                            referenced.Add(m.Value);
+                    }
+                }
+                deps[col.ColumnAlias] = referenced;
+            }
+
+            var inDegree    = cols.ToDictionary(c => c.ColumnAlias, c => deps[c.ColumnAlias].Count, StringComparer.OrdinalIgnoreCase);
+            var dependents  = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var kvp in deps)
+                foreach (var dep in kvp.Value)
+                {
+                    if (!dependents.ContainsKey(dep)) dependents[dep] = new List<string>();
+                    dependents[dep].Add(kvp.Key);
+                }
+
+            var queue = new Queue<FLRTGIDataSourceColumn>(
+                cols.Where(c => inDegree[c.ColumnAlias] == 0).OrderBy(c => c.SortOrder));
+            var sorted = new List<FLRTGIDataSourceColumn>();
+
+            while (queue.Count > 0)
+            {
+                var col = queue.Dequeue();
+                sorted.Add(col);
+                if (dependents.TryGetValue(col.ColumnAlias, out var depList))
+                {
+                    foreach (var dep in depList)
+                    {
+                        inDegree[dep]--;
+                        if (inDegree[dep] == 0)
+                            queue.Enqueue(cols.First(c => string.Equals(c.ColumnAlias, dep, StringComparison.OrdinalIgnoreCase)));
+                    }
+                }
+            }
+
+            if (sorted.Count < cols.Count)
+                throw new PXException("Circular dependency detected in CALCULATED columns: " +
+                    string.Join(", ", inDegree.Where(kv => kv.Value > 0).Select(kv => kv.Key)));
+
+            return sorted;
+        }
 
         /// <summary>
         /// Evaluates a simple arithmetic formula referencing other column aliases.

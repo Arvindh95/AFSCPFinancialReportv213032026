@@ -116,12 +116,16 @@ namespace FinancialReport
             PXUIFieldAttribute.SetEnabled<FLRTReportLineItem.accountTypeFilter>(e.Cache, e.Row, isAccount);
             PXUIFieldAttribute.SetEnabled<FLRTReportLineItem.signRule>(e.Cache, e.Row, isAccount);
             PXUIFieldAttribute.SetEnabled<FLRTReportLineItem.balanceType>(e.Cache, e.Row, isAccount);
+            PXUIFieldAttribute.SetEnabled<FLRTReportLineItem.subaccountFilter>(e.Cache, e.Row, isAccount);
+            PXUIFieldAttribute.SetEnabled<FLRTReportLineItem.branchFilter>(e.Cache, e.Row, isAccount);
+            PXUIFieldAttribute.SetEnabled<FLRTReportLineItem.organizationFilter>(e.Cache, e.Row, isAccount);
+            PXUIFieldAttribute.SetEnabled<FLRTReportLineItem.ledgerFilter>(e.Cache, e.Row, isAccount);
 
             // Formula — only for CALCULATED type
             PXUIFieldAttribute.SetEnabled<FLRTReportLineItem.formula>(e.Cache, e.Row, isCalculated);
 
-            // ParentLineCode — for ACCOUNT and SUBTOTAL (not CALCULATED or HEADING)
-            PXUIFieldAttribute.SetEnabled<FLRTReportLineItem.parentLineCode>(e.Cache, e.Row, isAccount || isSubtotal);
+            // ParentLineCode — for ACCOUNT, SUBTOTAL, and CALCULATED (not HEADING)
+            PXUIFieldAttribute.SetEnabled<FLRTReportLineItem.parentLineCode>(e.Cache, e.Row, isAccount || isSubtotal || isCalculated);
 
             // Heading lines have no value — hide irrelevant fields
             PXUIFieldAttribute.SetEnabled<FLRTReportLineItem.isVisible>(e.Cache, e.Row, !isHeading);
@@ -142,6 +146,10 @@ namespace FinancialReport
                     e.Cache.SetValue<FLRTReportLineItem.accountTypeFilter>(e.Row, null);
                     e.Cache.SetValue<FLRTReportLineItem.signRule>(e.Row, FLRTReportLineItem.SignRuleValue.AsIs);
                     e.Cache.SetValue<FLRTReportLineItem.balanceType>(e.Row, FLRTReportLineItem.BalanceTypeValue.Ending);
+                    e.Cache.SetValue<FLRTReportLineItem.subaccountFilter>(e.Row, null);
+                    e.Cache.SetValue<FLRTReportLineItem.branchFilter>(e.Row, null);
+                    e.Cache.SetValue<FLRTReportLineItem.organizationFilter>(e.Row, null);
+                    e.Cache.SetValue<FLRTReportLineItem.ledgerFilter>(e.Row, null);
                     break;
             }
 

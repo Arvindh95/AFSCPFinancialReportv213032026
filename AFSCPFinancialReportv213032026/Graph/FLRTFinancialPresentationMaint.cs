@@ -100,7 +100,7 @@ namespace FinancialReport
         public PXAction<FLRTPresentationGeneration> DownloadPresentation = null!;
         public PXAction<FLRTPresentationGeneration> ResetStatus = null!;
 
-        [PXButton(CommitChanges = true, ImageKey = "RecordEdit", ImageSet = "main", Tooltip = "Preview Markdown", Connotation = ActionConnotation.Info)]
+        [PXButton(CommitChanges = true, Tooltip = "Preview Markdown", Connotation = ActionConnotation.Info)]
         [PXUIField(DisplayName = "Preview Markdown", MapEnableRights = PXCacheRights.Update, Visible = true)]
         protected virtual System.Collections.IEnumerable previewMarkdown(PXAdapter adapter)
         {
@@ -171,7 +171,7 @@ namespace FinancialReport
             return adapter.Get();
         }
 
-        [PXButton(CommitChanges = true, ImageKey = "DataEntry", ImageSet = "main", Tooltip = "Generate Presentation", Connotation = ActionConnotation.Success)]
+        [PXButton(CommitChanges = true, Tooltip = "Generate Presentation", Connotation = ActionConnotation.Success)]
         [PXUIField(DisplayName = "Generate Presentation", MapEnableRights = PXCacheRights.Update, Visible = true)]
         protected virtual System.Collections.IEnumerable generateGamma(PXAdapter adapter)
         {
@@ -309,7 +309,7 @@ namespace FinancialReport
             return adapter.Get();
         }
 
-        [PXButton(ImageKey = "Copy", ImageSet = "main", Tooltip = "Download Presentation", Connotation = ActionConnotation.Info)]
+        [PXButton(Tooltip = "Download Presentation", Connotation = ActionConnotation.Info)]
         [PXUIField(DisplayName = "Download Presentation", MapEnableRights = PXCacheRights.Select, Visible = true)]
         protected virtual System.Collections.IEnumerable downloadPresentation(PXAdapter adapter)
         {
@@ -324,7 +324,7 @@ namespace FinancialReport
             throw new PXRedirectToFileException(selectedRecord.SlideGeneratedFileID.Value, true);
         }
 
-        [PXButton(CommitChanges = true, ImageKey = "Refresh", ImageSet = "main", Tooltip = "Reset Status", Connotation = ActionConnotation.Danger)]
+        [PXButton(CommitChanges = true, Tooltip = "Reset Status", Connotation = ActionConnotation.Danger)]
         [PXUIField(DisplayName = "Reset Status", MapEnableRights = PXCacheRights.Update, Visible = true)]
         protected virtual System.Collections.IEnumerable resetStatus(PXAdapter adapter)
         {

@@ -135,8 +135,8 @@ namespace FinancialReport
         [PXStringList(
             new string[] { AggregateFunctionType.Sum, AggregateFunctionType.First,
                            AggregateFunctionType.Max, AggregateFunctionType.Min,
-                           AggregateFunctionType.Count },
-            new string[] { "Sum", "First", "Max", "Min", "Count" })]
+                           AggregateFunctionType.Avg, AggregateFunctionType.Count },
+            new string[] { "Sum", "First", "Max", "Min", "Avg", "Count" })]
         public virtual string AggregateFunction { get; set; }
         public abstract class aggregateFunction : PX.Data.BQL.BqlString.Field<aggregateFunction> { }
         #endregion
@@ -325,6 +325,7 @@ namespace FinancialReport
             public const string First = "FIRST";
             public const string Max   = "MAX";
             public const string Min   = "MIN";
+            public const string Avg   = "AVG";
             public const string Count = "COUNT";
         }
 
