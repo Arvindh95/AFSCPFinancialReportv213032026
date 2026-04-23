@@ -79,6 +79,12 @@ namespace FinancialReport
         /// </summary>
         [PXDBString(50, IsUnicode = true)]
         [PXUIField(DisplayName = "Account From")]
+        [PXSelector(typeof(Search<Account.accountCD>),
+            typeof(Account.accountCD),
+            typeof(Account.description),
+            typeof(Account.type),
+            SubstituteKey = typeof(Account.accountCD),
+            ValidateValue = false)]
         public virtual string AccountFrom { get; set; }
         public abstract class accountFrom : PX.Data.BQL.BqlString.Field<accountFrom> { }
         #endregion
@@ -90,6 +96,12 @@ namespace FinancialReport
         /// </summary>
         [PXDBString(50, IsUnicode = true)]
         [PXUIField(DisplayName = "Account To")]
+        [PXSelector(typeof(Search<Account.accountCD>),
+            typeof(Account.accountCD),
+            typeof(Account.description),
+            typeof(Account.type),
+            SubstituteKey = typeof(Account.accountCD),
+            ValidateValue = false)]
         public virtual string AccountTo { get; set; }
         public abstract class accountTo : PX.Data.BQL.BqlString.Field<accountTo> { }
         #endregion
@@ -139,8 +151,8 @@ namespace FinancialReport
         [PXDefault(BalanceTypeValue.Ending)]
         [PXUIField(DisplayName = "Balance Type")]
         [PXStringList(
-            new string[] { BalanceTypeValue.Ending, BalanceTypeValue.Beginning, BalanceTypeValue.Debit, BalanceTypeValue.Credit, BalanceTypeValue.Movement, BalanceTypeValue.PeriodDebit, BalanceTypeValue.PeriodCredit, BalanceTypeValue.PeriodMovement },
-            new string[] { "Ending Balance", "Beginning Balance", "Debit (YTD)", "Credit (YTD)", "Movement (YTD)", "Period Debit", "Period Credit", "Period Movement" }
+            new string[] { BalanceTypeValue.Ending, BalanceTypeValue.Beginning, BalanceTypeValue.Debit, BalanceTypeValue.Credit, BalanceTypeValue.Movement },
+            new string[] { "Ending Balance", "Beginning Balance", "Debit (YTD)", "Credit (YTD)", "Movement (YTD)" }
         )]
         public virtual string BalanceType { get; set; }
         public abstract class balanceType : PX.Data.BQL.BqlString.Field<balanceType> { }
@@ -195,6 +207,11 @@ namespace FinancialReport
         /// </summary>
         [PXDBString(30, IsUnicode = true)]
         [PXUIField(DisplayName = "Subaccount Filter")]
+        [PXSelector(typeof(Search<Sub.subCD>),
+            typeof(Sub.subCD),
+            typeof(Sub.description),
+            SubstituteKey = typeof(Sub.subCD),
+            ValidateValue = false)]
         public virtual string SubaccountFilter { get; set; }
         public abstract class subaccountFilter : PX.Data.BQL.BqlString.Field<subaccountFilter> { }
         #endregion
@@ -301,20 +318,14 @@ namespace FinancialReport
 
         public static class BalanceTypeValue
         {
-            public const string Ending            = "ENDING";
-            public const string Beginning         = "BEGINNING";
-            /// <summary>Year-to-date cumulative debit (fiscal start → selected month).</summary>
-            public const string Debit             = "DEBIT";
-            /// <summary>Year-to-date cumulative credit (fiscal start → selected month).</summary>
-            public const string Credit            = "CREDIT";
-            /// <summary>Year-to-date cumulative movement / net (fiscal start → selected month).</summary>
-            public const string Movement          = "MOVEMENT";
-            /// <summary>Debit for the selected period only (single month). Use for monthly reports.</summary>
-            public const string PeriodDebit       = "PDEBIT";
-            /// <summary>Credit for the selected period only (single month). Use for monthly reports.</summary>
-            public const string PeriodCredit      = "PCREDIT";
-            /// <summary>Net movement for the selected period only (single month). Use for monthly reports.</summary>
-            public const string PeriodMovement    = "PMOVEMENT";
+            public const string Ending    = "ENDING";
+            public const string Beginning = "BEGINNING";
+            /// <summary>Full fiscal-year debit sum (FY start → FY end).</summary>
+            public const string Debit     = "DEBIT";
+            /// <summary>Full fiscal-year credit sum (FY start → FY end).</summary>
+            public const string Credit    = "CREDIT";
+            /// <summary>Full fiscal-year net movement (Debit − Credit).</summary>
+            public const string Movement  = "MOVEMENT";
         }
 
         public static class AccountTypeValue

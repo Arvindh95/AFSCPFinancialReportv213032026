@@ -31,10 +31,13 @@ namespace FinancialReport.Services
             // Period strings computed from the report record
             public string CurrYear             { get; set; }
             public string PrevYear             { get; set; }
-            public string SelectedPeriod       { get; set; }
-            public string PrevYearPeriod       { get; set; }
-            public string PrevYearPriorPeriod  { get; set; }
-            public string PrevMonthPeriod      { get; set; }
+            // Point-in-time periods = FY END month of each fiscal year (used for Ending/Beginning).
+            public string SelectedPeriod       { get; set; } // FY end of CurrYear (e.g. Jul 2025 for Aug-start FY2025)
+            public string PrevYearPeriod       { get; set; } // FY end of CurrYear-1
+            public string PrevYearPriorPeriod  { get; set; } // FY end of CurrYear-2
+            // FY start periods = first month of FY (used for YTD range start).
+            public string CyFyStartPeriod      { get; set; } // FY start of CurrYear (e.g. Aug 2024 for Aug-start FY2025)
+            public string PyFyStartPeriod      { get; set; } // FY start of CurrYear-1
         }
 
         /// <summary>
@@ -112,20 +115,25 @@ namespace FinancialReport.Services
             }
 
             // ── 3. Compute period strings ─────────────────────────────────────────
+            // FY model: FinancialMonth = FY start month. CurrYear = FY end year.
+            // FY end month = FinancialMonth - 1 (wraps Jan → Dec).
+            // e.g. FinMonth=Aug, CurrYear=2025 → FY2025 = Aug 2024 → Jul 2025.
+            //      FinMonth=Jan, CurrYear=2025 → FY2025 = Jan 2025 → Dec 2025 (calendar).
             string currYear      = record.CurrYear ?? DateTime.Now.ToString("yyyy");
             string selectedMonth = record.FinancialMonth ?? "12";
             int currYearInt      = int.TryParse(currYear, out int y) ? y : DateTime.Now.Year;
             int selectedMonthInt = int.TryParse(selectedMonth, out int m) ? m : 12;
 
-            string prevYear           = (currYearInt - 1).ToString();
-            string prevYearPrior      = (currYearInt - 2).ToString();
-            string selectedPeriod     = $"{selectedMonth}{currYear}";
-            string prevYearPeriod     = $"{selectedMonth}{prevYear}";
-            string prevYearPriorPeriod = $"{selectedMonth}{prevYearPrior}";
+            int fyEndMonthInt    = selectedMonthInt == 1 ? 12 : selectedMonthInt - 1;
+            string fyEndMonth    = fyEndMonthInt.ToString("D2");
+            int cyFyStartYear    = selectedMonthInt == 1 ? currYearInt : currYearInt - 1;
 
-            int prevMonthInt  = selectedMonthInt == 1 ? 12 : selectedMonthInt - 1;
-            int prevMonthYear = selectedMonthInt == 1 ? currYearInt - 1 : currYearInt;
-            string prevMonthPeriod = $"{prevMonthInt:D2}{prevMonthYear}";
+            string prevYear            = (currYearInt - 1).ToString();
+            string selectedPeriod      = $"{fyEndMonth}{currYearInt}";
+            string prevYearPeriod      = $"{fyEndMonth}{currYearInt - 1}";
+            string prevYearPriorPeriod = $"{fyEndMonth}{currYearInt - 2}";
+            string cyFyStartPeriod     = $"{selectedMonth}{cyFyStartYear}";
+            string pyFyStartPeriod     = $"{selectedMonth}{cyFyStartYear - 1}";
 
             return new Context
             {
@@ -137,13 +145,14 @@ namespace FinancialReport.Services
                 SelectedPeriod       = selectedPeriod,
                 PrevYearPeriod       = prevYearPeriod,
                 PrevYearPriorPeriod  = prevYearPriorPeriod,
-                PrevMonthPeriod      = prevMonthPeriod
+                CyFyStartPeriod      = cyFyStartPeriod,
+                PyFyStartPeriod      = pyFyStartPeriod
             };
         }
 
         /// <summary>
         /// Full pipeline for slide/markdown generation: builds context, fetches GL data, runs the engine.
-        /// Always fetches CY, PY, Prior, PM (no conditional optimisation needed for slides).
+        /// Fetches CY, PY, Prior point-in-time (FY-end) balances plus CY/PY YTD ranges.
         /// Used by SlideGenerationService only.
         /// </summary>
         public static Dictionary<string, string> FetchAndCalculate(
@@ -158,21 +167,23 @@ namespace FinancialReport.Services
 
             var dataService = new FinancialDataService(authService, tenantName, ctx.ColumnMapping);
 
-            var taskCY    = Task.Run(() => dataService.FetchAllApiData(record.Branch, record.Organization, record.Ledger, ctx.SelectedPeriod,      false, cancellationToken), cancellationToken);
-            var taskPY    = Task.Run(() => dataService.FetchAllApiData(record.Branch, record.Organization, record.Ledger, ctx.PrevYearPeriod,      false, cancellationToken), cancellationToken);
-            var taskPrior = Task.Run(() => dataService.FetchAllApiData(record.Branch, record.Organization, record.Ledger, ctx.PrevYearPriorPeriod, false, cancellationToken), cancellationToken);
-            var taskPM    = Task.Run(() => dataService.FetchAllApiData(record.Branch, record.Organization, record.Ledger, ctx.PrevMonthPeriod,     false, cancellationToken), cancellationToken);
+            var taskCY       = Task.Run(() => dataService.FetchAllApiData(record.Branch, record.Organization, record.Ledger, ctx.SelectedPeriod,      false, cancellationToken), cancellationToken);
+            var taskPY       = Task.Run(() => dataService.FetchAllApiData(record.Branch, record.Organization, record.Ledger, ctx.PrevYearPeriod,      false, cancellationToken), cancellationToken);
+            var taskPrior    = Task.Run(() => dataService.FetchAllApiData(record.Branch, record.Organization, record.Ledger, ctx.PrevYearPriorPeriod, false, cancellationToken), cancellationToken);
+            var taskRangeCY  = Task.Run(() => dataService.FetchRangeApiData(record.Branch, record.Organization, record.Ledger, ctx.CyFyStartPeriod, ctx.SelectedPeriod, cancellationToken), cancellationToken);
+            var taskRangePY  = Task.Run(() => dataService.FetchRangeApiData(record.Branch, record.Organization, record.Ledger, ctx.PyFyStartPeriod, ctx.PrevYearPeriod, cancellationToken), cancellationToken);
 
-            Task.WhenAll(taskCY, taskPY, taskPrior, taskPM).Wait(cancellationToken);
+            Task.WhenAll(taskCY, taskPY, taskPrior, taskRangeCY, taskRangePY).Wait(cancellationToken);
 
             var engine = new ReportCalculationEngine(graph);
             return engine.CalculateAll(
                 ctx.DefinitionLinks,
                 taskCY.Result,
                 taskPY.Result,
-                cyOpeningData: taskPY.Result,
-                pyOpeningData: taskPrior.Result,
-                pmData:        taskPM.Result);
+                cyOpeningData:    taskPY.Result,
+                pyOpeningData:    taskPrior.Result,
+                cyCumulativeData: taskRangeCY.Result,
+                pyCumulativeData: taskRangePY.Result);
         }
 
         // ── Presentation Generation overloads ─────────────────────────────────────
@@ -230,20 +241,22 @@ namespace FinancialReport.Services
                 definitionsWithItems.Add((defLink, items));
             }
 
+            // FY model: see FLRTFinancialReport BuildContext overload above.
             string currYear      = record.CurrYear ?? DateTime.Now.ToString("yyyy");
             string selectedMonth = record.FinancialMonth ?? "12";
             int currYearInt      = int.TryParse(currYear, out int y) ? y : DateTime.Now.Year;
             int selectedMonthInt = int.TryParse(selectedMonth, out int m) ? m : 12;
 
-            string prevYear            = (currYearInt - 1).ToString();
-            string prevYearPrior       = (currYearInt - 2).ToString();
-            string selectedPeriod      = $"{selectedMonth}{currYear}";
-            string prevYearPeriod      = $"{selectedMonth}{prevYear}";
-            string prevYearPriorPeriod = $"{selectedMonth}{prevYearPrior}";
+            int fyEndMonthInt    = selectedMonthInt == 1 ? 12 : selectedMonthInt - 1;
+            string fyEndMonth    = fyEndMonthInt.ToString("D2");
+            int cyFyStartYear    = selectedMonthInt == 1 ? currYearInt : currYearInt - 1;
 
-            int prevMonthInt  = selectedMonthInt == 1 ? 12 : selectedMonthInt - 1;
-            int prevMonthYear = selectedMonthInt == 1 ? currYearInt - 1 : currYearInt;
-            string prevMonthPeriod = $"{prevMonthInt:D2}{prevMonthYear}";
+            string prevYear            = (currYearInt - 1).ToString();
+            string selectedPeriod      = $"{fyEndMonth}{currYearInt}";
+            string prevYearPeriod      = $"{fyEndMonth}{currYearInt - 1}";
+            string prevYearPriorPeriod = $"{fyEndMonth}{currYearInt - 2}";
+            string cyFyStartPeriod     = $"{selectedMonth}{cyFyStartYear}";
+            string pyFyStartPeriod     = $"{selectedMonth}{cyFyStartYear - 1}";
 
             return new Context
             {
@@ -255,7 +268,8 @@ namespace FinancialReport.Services
                 SelectedPeriod       = selectedPeriod,
                 PrevYearPeriod       = prevYearPeriod,
                 PrevYearPriorPeriod  = prevYearPriorPeriod,
-                PrevMonthPeriod      = prevMonthPeriod
+                CyFyStartPeriod      = cyFyStartPeriod,
+                PyFyStartPeriod      = pyFyStartPeriod
             };
         }
 
@@ -274,21 +288,23 @@ namespace FinancialReport.Services
 
             var dataService = new FinancialDataService(authService, tenantName, ctx.ColumnMapping);
 
-            var taskCY    = Task.Run(() => dataService.FetchAllApiData(record.Branch, record.Organization, record.Ledger, ctx.SelectedPeriod,      false, cancellationToken), cancellationToken);
-            var taskPY    = Task.Run(() => dataService.FetchAllApiData(record.Branch, record.Organization, record.Ledger, ctx.PrevYearPeriod,      false, cancellationToken), cancellationToken);
-            var taskPrior = Task.Run(() => dataService.FetchAllApiData(record.Branch, record.Organization, record.Ledger, ctx.PrevYearPriorPeriod, false, cancellationToken), cancellationToken);
-            var taskPM    = Task.Run(() => dataService.FetchAllApiData(record.Branch, record.Organization, record.Ledger, ctx.PrevMonthPeriod,     false, cancellationToken), cancellationToken);
+            var taskCY       = Task.Run(() => dataService.FetchAllApiData(record.Branch, record.Organization, record.Ledger, ctx.SelectedPeriod,      false, cancellationToken), cancellationToken);
+            var taskPY       = Task.Run(() => dataService.FetchAllApiData(record.Branch, record.Organization, record.Ledger, ctx.PrevYearPeriod,      false, cancellationToken), cancellationToken);
+            var taskPrior    = Task.Run(() => dataService.FetchAllApiData(record.Branch, record.Organization, record.Ledger, ctx.PrevYearPriorPeriod, false, cancellationToken), cancellationToken);
+            var taskRangeCY  = Task.Run(() => dataService.FetchRangeApiData(record.Branch, record.Organization, record.Ledger, ctx.CyFyStartPeriod, ctx.SelectedPeriod, cancellationToken), cancellationToken);
+            var taskRangePY  = Task.Run(() => dataService.FetchRangeApiData(record.Branch, record.Organization, record.Ledger, ctx.PyFyStartPeriod, ctx.PrevYearPeriod, cancellationToken), cancellationToken);
 
-            Task.WhenAll(taskCY, taskPY, taskPrior, taskPM).Wait(cancellationToken);
+            Task.WhenAll(taskCY, taskPY, taskPrior, taskRangeCY, taskRangePY).Wait(cancellationToken);
 
             var engine = new ReportCalculationEngine(graph);
             return engine.CalculateAll(
                 ctx.DefinitionLinks,
                 taskCY.Result,
                 taskPY.Result,
-                cyOpeningData: taskPY.Result,
-                pyOpeningData: taskPrior.Result,
-                pmData:        taskPM.Result);
+                cyOpeningData:    taskPY.Result,
+                pyOpeningData:    taskPrior.Result,
+                cyCumulativeData: taskRangeCY.Result,
+                pyCumulativeData: taskRangePY.Result);
         }
     }
 }

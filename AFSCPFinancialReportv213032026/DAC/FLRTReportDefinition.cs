@@ -140,6 +140,60 @@ namespace FinancialReport
         public abstract class creditColumn : PX.Data.BQL.BqlString.Field<creditColumn> { }
         #endregion
 
+        #region MovementColumn
+        [PXDBString(100, IsUnicode = true)]
+        [PXDefault("Movement")]
+        [PXUIField(DisplayName = "Movement Column")]
+        [GIColumnSelector]
+        public virtual string MovementColumn { get; set; }
+        public abstract class movementColumn : PX.Data.BQL.BqlString.Field<movementColumn> { }
+        #endregion
+
+        #region PeriodColumn
+        [PXDBString(100, IsUnicode = true)]
+        [PXDefault("FinancialPeriod")]
+        [PXUIField(DisplayName = "Period Column")]
+        [GIColumnSelector]
+        public virtual string PeriodColumn { get; set; }
+        public abstract class periodColumn : PX.Data.BQL.BqlString.Field<periodColumn> { }
+        #endregion
+
+        #region SubaccountColumn
+        [PXDBString(100, IsUnicode = true)]
+        [PXDefault("Subaccount")]
+        [PXUIField(DisplayName = "Subaccount Column")]
+        [GIColumnSelector]
+        public virtual string SubaccountColumn { get; set; }
+        public abstract class subaccountColumn : PX.Data.BQL.BqlString.Field<subaccountColumn> { }
+        #endregion
+
+        #region BranchColumn
+        [PXDBString(100, IsUnicode = true)]
+        [PXDefault("BranchID")]
+        [PXUIField(DisplayName = "Branch Column")]
+        [GIColumnSelector]
+        public virtual string BranchColumn { get; set; }
+        public abstract class branchColumn : PX.Data.BQL.BqlString.Field<branchColumn> { }
+        #endregion
+
+        #region OrganizationColumn
+        [PXDBString(100, IsUnicode = true)]
+        [PXDefault("OrganizationID")]
+        [PXUIField(DisplayName = "Organization Column")]
+        [GIColumnSelector]
+        public virtual string OrganizationColumn { get; set; }
+        public abstract class organizationColumn : PX.Data.BQL.BqlString.Field<organizationColumn> { }
+        #endregion
+
+        #region LedgerColumn
+        [PXDBString(100, IsUnicode = true)]
+        [PXDefault("LedgerID")]
+        [PXUIField(DisplayName = "Ledger Column")]
+        [GIColumnSelector]
+        public virtual string LedgerColumn { get; set; }
+        public abstract class ledgerColumn : PX.Data.BQL.BqlString.Field<ledgerColumn> { }
+        #endregion
+
         #endregion
 
         #region Rounding Fields

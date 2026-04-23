@@ -60,7 +60,7 @@ namespace FinancialReport.Services
         {
             string accessToken = await _authService.AuthenticateAndGetTokenAsync();
             string dimensionFilter = BuildDimensionFilter(branch, organization);
-            string filter = $"FinancialPeriod eq '{period}' and {dimensionFilter}";
+            string filter = $"{_columnMapping.PeriodColumn} eq '{period}' and {dimensionFilter}";
 
             var accountData = new Dictionary<string, FinancialPeriodData>();
             var detailRows  = new List<FinancialPeriodData>();
@@ -142,7 +142,7 @@ namespace FinancialReport.Services
         {
             string accessToken = _authService.AuthenticateAndGetToken();
             string dimensionFilter = BuildDimensionFilter(branch, organization);
-            string baseFilter = $"FinancialPeriod ge '{fromPeriod}' and FinancialPeriod le '{toPeriod}' and {dimensionFilter}";
+            string baseFilter = $"{_columnMapping.PeriodColumn} ge '{fromPeriod}' and {_columnMapping.PeriodColumn} le '{toPeriod}' and {dimensionFilter}";
 
             var cumulativeDict = new Dictionary<string, FinancialPeriodData>();
 
@@ -184,7 +184,7 @@ namespace FinancialReport.Services
         public FinancialApiData FetchCompositeKeyData(string branch, string organization, string ledger, string period, CancellationToken cancellationToken = default)
         {
             string accessToken = _authService.AuthenticateAndGetToken();
-            string baseFilter = $"FinancialPeriod eq '{period}' and 1 eq 1";
+            string baseFilter = $"{_columnMapping.PeriodColumn} eq '{period}' and 1 eq 1";
 
             var compositeData = new Dictionary<string, FinancialPeriodData>();
 
@@ -241,8 +241,8 @@ namespace FinancialReport.Services
             }
 
             string accessToken = _authService.AuthenticateAndGetToken();
-            string baseFilter = $"FinancialPeriod eq '{period}' and BranchID eq '{branch}' and OrganizationID eq '{organization}' and " +
-                               $"Account eq '{account}' and Subaccount eq '{subaccount}'";
+            string baseFilter = $"{_columnMapping.PeriodColumn} eq '{period}' and {_columnMapping.BranchColumn} eq '{branch}' and {_columnMapping.OrganizationColumn} eq '{organization}' and " +
+                               $"{_columnMapping.AccountColumn} eq '{account}' and {_columnMapping.SubaccountColumn} eq '{subaccount}'";
 
             var results = ExecuteFetchWithFallback(_httpClient, baseFilter, ledger, accessToken, cancellationToken);
 
@@ -548,15 +548,15 @@ namespace FinancialReport.Services
             if (!string.IsNullOrEmpty(branch) && !string.IsNullOrEmpty(organization))
             {
                 // Return a filter that requires BOTH match
-                return $"BranchID eq '{branch}' and OrganizationID eq '{organization}'";
+                return $"{_columnMapping.BranchColumn} eq '{branch}' and {_columnMapping.OrganizationColumn} eq '{organization}'";
             }
             else if (!string.IsNullOrEmpty(branch))
             {
-                return $"BranchID eq '{branch}'";
+                return $"{_columnMapping.BranchColumn} eq '{branch}'";
             }
             else if (!string.IsNullOrEmpty(organization))
             {
-                return $"OrganizationID eq '{organization}'";
+                return $"{_columnMapping.OrganizationColumn} eq '{organization}'";
             }
             else
             {
@@ -568,7 +568,7 @@ namespace FinancialReport.Services
         private string AppendLedgerFilter(string baseFilter, string ledger)
         {
             return !string.IsNullOrEmpty(ledger)
-                ? $"{baseFilter} and LedgerID eq '{ledger}'"
+                ? $"{baseFilter} and {_columnMapping.LedgerColumn} eq '{ledger}'"
                 : baseFilter;
         }
 

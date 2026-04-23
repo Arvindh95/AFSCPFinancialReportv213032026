@@ -26,7 +26,7 @@ One definition is typically created per statement type (Balance Sheet, P&L, Cash
 
 > **Screen ID:** FR101002
 
-![AFS Report Definition landing screen](images/reportdef_01_landing.png)
+![AFS Report Definition landing screen](images/report_definition/reportdef_01_landing.png)
 
 ---
 
@@ -34,7 +34,7 @@ One definition is typically created per statement type (Balance Sheet, P&L, Cash
 
 Click the **+** (Add) button. The **Definition Code** field shows `<NEW>` until saved.
 
-![New empty record](images/reportdef_01_new_record.png)
+![New empty record](images/report_definition/reportdef_01_new_record.png)
 
 ---
 
@@ -48,7 +48,7 @@ Enter the three required header fields:
 | **Prefix**           | `DB`                | Short alphanumeric tag, max 10 chars (`^[A-Za-z0-9]+$` — letters and digits only, no separators). Namespaces all placeholders emitted by this definition, e.g. `{{DB_TOTAL_ASSETS_CY}}`. **Must be unique across all definitions in the tenant.** |
 | **Description**      | `Demo Balance Sheet`| Free-text label, max 255 chars. Appears in the selector dropdown on downstream screens.                                                           |
 
-![Header filled — Definition Code, Prefix, Description](images/reportdef_02_header_filled.png)
+![Header filled — Definition Code, Prefix, Description](images/report_definition/reportdef_02_header_filled.png)
 
 ---
 
@@ -64,7 +64,7 @@ Enter the three required header fields:
 | `EQ`  | Changes in Equity    |
 | `CU`  | Custom               |
 
-![Report Type dropdown open](images/reportdef_04_reporttype_dropdown.png)
+![Report Type dropdown open](images/report_definition/reportdef_04_reporttype_dropdown.png)
 
 Also visible on the same header row:
 
@@ -76,13 +76,13 @@ Also visible on the same header row:
 
 **Generic Inquiry Name** drives *where* the engine pulls GL balances from. Defaults to **`TrialBalance`**. Use the selector (magnifier icon) to pick any published GI.
 
-![Generic Inquiry selector](images/reportdef_03_gi_selector.png)
+![Generic Inquiry selector](images/report_definition/reportdef_03_gi_selector.png)
 
 The selector lists all `GIDesign` records in the tenant. Any GI that returns rows keyed by account with balance figures can be used — the column mapping in Step 6 tells the engine which GI column carries each concept.
 
 After saving, the header is populated and ready for column mapping:
 
-![Header populated after GI selection](images/reportdef_03_header_populated.png)
+![Header populated after GI selection](images/report_definition/reportdef_03_header_populated.png)
 
 ---
 
@@ -101,7 +101,7 @@ This section tells the engine *which column in the chosen GI* holds each balance
 
 > The defaults match Acumatica's stock **TrialBalance** GI. If you clone or customize that GI, rename the columns here to match.
 
-![Account Column selector open](images/reportdef_04_accountcolumn_selector.png)
+![Account Column selector open](images/report_definition/reportdef_04_accountcolumn_selector.png)
 
 ---
 
@@ -114,7 +114,7 @@ Controls how numeric placeholders are formatted when they appear in the final Wo
 | **Rounding Level**   | `UNITS` (default), `THOUS`, `MILL`    | Divides all numbers by 1 / 1,000 / 1,000,000 before rendering.                   |
 | **Decimal Places**   | `0` (default), `1`, `2`               | Digits shown after the decimal point.                                            |
 
-![Rounding Level dropdown](images/reportdef_05_rounding_dropdown.png)
+![Rounding Level dropdown](images/report_definition/reportdef_05_rounding_dropdown.png)
 
 Example: With Rounding Level = `THOUS` and Decimal Places = `1`, a raw value of `1,234,567.89` renders as `1,234.6`.
 
@@ -126,7 +126,7 @@ Example: With Rounding Level = `THOUS` and Decimal Places = `1`, a raw value of 
 
 Each row in **Line Items** is a single placeholder that will appear in the generated report. The engine calculates one CY / PM / PY value per visible row. The grid columns are as follows.
 
-![Line Items grid with first row](images/reportdef_05_lineitem_row.png)
+![Line Items grid with first row](images/report_definition/reportdef_05_lineitem_row.png)
 
 ### Columns — overview
 
@@ -161,7 +161,7 @@ Each row in **Line Items** is a single placeholder that will appear in the gener
 | `CALCULATED` | Calculated     | Evaluate `Formula` at runtime, referencing other `LineCode`s. Supports `+ − × ÷` and parentheses.                                |
 | `HEADING`    | Heading        | Display-only. No value is computed; used to emit a section header into the report.                                               |
 
-![Line Code typed (CASH)](images/reportdef_06_linecode_typed.png)
+![Line Code typed (CASH)](images/report_definition/reportdef_06_linecode_typed.png)
 
 ---
 

@@ -47,23 +47,6 @@
 	<px:PXTab runat="server" ID="tabDetails" DataSourceID="ds" Width="100%">
 		<AutoSize Enabled="True" Container="Window" MinHeight="250" />
 		<Items>
-			<px:PXTabItem Text="REPORT DEFINITIONS">
-				<Template>
-					<px:PXGrid Width="100%" SkinID="Details" runat="server" ID="gridDefinitionLinks"
-						DataSourceID="ds" AutoAdjustColumns="True">
-						<Levels>
-							<px:PXGridLevel DataMember="DefinitionLinks">
-								<Columns>
-									<px:PXGridColumn DataField="DefinitionID"     Width="220" CommitChanges="True" />
-									<px:PXGridColumn DataField="DefinitionPrefix" Width="80" />
-									<px:PXGridColumn DataField="DisplayOrder"     Width="100" CommitChanges="True" />
-								</Columns>
-							</px:PXGridLevel>
-						</Levels>
-						<AutoSize Enabled="True" />
-					</px:PXGrid>
-				</Template>
-			</px:PXTabItem>
 			<px:PXTabItem Text="GI DATA SOURCES">
 				<Template>
 					<px:PXGrid Width="100%" SkinID="Details" runat="server" ID="gridDataSourceLinks"

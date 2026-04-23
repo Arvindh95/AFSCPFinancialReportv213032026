@@ -18,6 +18,7 @@ namespace FinancialReport
 
         public SelectFrom<FLRTReportDefinition>.View ReportDefinition;
 
+        [PXImport(typeof(FLRTReportDefinition))]
         public SelectFrom<FLRTReportLineItem>
             .Where<FLRTReportLineItem.definitionID.IsEqual<FLRTReportDefinition.definitionID.FromCurrent>>
             .OrderBy<FLRTReportLineItem.sortOrder.Asc>

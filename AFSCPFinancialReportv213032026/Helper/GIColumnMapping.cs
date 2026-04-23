@@ -13,12 +13,16 @@ namespace FinancialReport.Helper
         public string EndingBalCol    { get; set; } = "EndingBalance";
         public string DebitColumn     { get; set; } = "Debit";
         public string CreditColumn    { get; set; } = "Credit";
+        public string MovementColumn  { get; set; } = "Movement";
 
-        // Dimension columns used for per-line filtering
+        // Period column used in OData $filter for FinancialPeriod eq '...' clauses
+        public string PeriodColumn       { get; set; } = "FinancialPeriod";
+
+        // Dimension columns used for per-line filtering and OData $filter clauses
         public string SubaccountColumn   { get; set; } = "Subaccount";
         public string BranchColumn       { get; set; } = "BranchID";
         public string OrganizationColumn { get; set; } = "OrganizationID";
-        public string LedgerColumn       { get; set; } = "Ledger";
+        public string LedgerColumn       { get; set; } = "LedgerID";
 
         /// <summary>
         /// Builds the OData $select clause from mapped column names.
@@ -28,7 +32,7 @@ namespace FinancialReport.Helper
             return string.Join(",", new[]
             {
                 AccountColumn, TypeColumn, BeginningBalCol,
-                EndingBalCol, DebitColumn, CreditColumn, "Movement",
+                EndingBalCol, DebitColumn, CreditColumn, MovementColumn,
                 SubaccountColumn, BranchColumn, OrganizationColumn, LedgerColumn
             });
         }
@@ -42,13 +46,19 @@ namespace FinancialReport.Helper
             if (def == null) return new GIColumnMapping();
             return new GIColumnMapping
             {
-                GIName          = def.GIName ?? "TrialBalance",
-                AccountColumn   = def.AccountColumn ?? "Account",
-                TypeColumn      = def.TypeColumn ?? "Type",
-                BeginningBalCol = def.BeginningBalColumn ?? "BeginningBalance",
-                EndingBalCol    = def.EndingBalColumn ?? "EndingBalance",
-                DebitColumn     = def.DebitColumn ?? "Debit",
-                CreditColumn    = def.CreditColumn ?? "Credit"
+                GIName             = def.GIName ?? "TrialBalance",
+                AccountColumn      = def.AccountColumn ?? "Account",
+                TypeColumn         = def.TypeColumn ?? "Type",
+                BeginningBalCol    = def.BeginningBalColumn ?? "BeginningBalance",
+                EndingBalCol       = def.EndingBalColumn ?? "EndingBalance",
+                DebitColumn        = def.DebitColumn ?? "Debit",
+                CreditColumn       = def.CreditColumn ?? "Credit",
+                MovementColumn     = def.MovementColumn ?? "Movement",
+                PeriodColumn       = def.PeriodColumn ?? "FinancialPeriod",
+                SubaccountColumn   = def.SubaccountColumn ?? "Subaccount",
+                BranchColumn       = def.BranchColumn ?? "BranchID",
+                OrganizationColumn = def.OrganizationColumn ?? "OrganizationID",
+                LedgerColumn       = def.LedgerColumn ?? "LedgerID"
             };
         }
     }
