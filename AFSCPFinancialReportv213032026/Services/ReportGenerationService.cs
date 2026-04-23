@@ -145,8 +145,6 @@ namespace FinancialReport.Services
                 fetchGate = new System.Threading.SemaphoreSlim(3, 3);
                 var taskCY      = Task.Run(async () => { await fetchGate.WaitAsync(cancellationToken); try { return localDataService.FetchAllApiData(_currentRecord.Branch, _currentRecord.Organization, _currentRecord.Ledger, selectedPeriod,      needsDetail, cancellationToken); } finally { fetchGate.Release(); } }, cancellationToken);
                 var taskPY      = Task.Run(async () => { await fetchGate.WaitAsync(cancellationToken); try { return localDataService.FetchAllApiData(_currentRecord.Branch, _currentRecord.Organization, _currentRecord.Ledger, prevYearPeriod,      needsDetail, cancellationToken); } finally { fetchGate.Release(); } }, cancellationToken);
-                var taskJanPY   = Task.Run(async () => { await fetchGate.WaitAsync(cancellationToken); try { return localDataService.FetchJanuaryBeginningBalance(_currentRecord.Branch, _currentRecord.Organization, _currentRecord.Ledger, prevYear, cancellationToken); } finally { fetchGate.Release(); } }, cancellationToken);
-                var taskJanCY   = Task.Run(async () => { await fetchGate.WaitAsync(cancellationToken); try { return localDataService.FetchJanuaryBeginningBalance(_currentRecord.Branch, _currentRecord.Organization, _currentRecord.Ledger, currYear, cancellationToken); } finally { fetchGate.Release(); } }, cancellationToken);
                 // Cumulative (Debit/Credit/Movement YTD): skip if no line uses those balance types
                 var taskRangeCY = needsCumulative
                     ? Task.Run(async () => { await fetchGate.WaitAsync(cancellationToken); try { return localDataService.FetchRangeApiData(_currentRecord.Branch, _currentRecord.Organization, _currentRecord.Ledger, cyCumulativeStart, selectedPeriod, cancellationToken); } finally { fetchGate.Release(); } }, cancellationToken)
@@ -159,18 +157,16 @@ namespace FinancialReport.Services
                 // Previous month: always fetched — engine produces _PM placeholders for all visible line items
                 var taskPM      = Task.Run(async () => { await fetchGate.WaitAsync(cancellationToken); try { return localDataService.FetchAllApiData(_currentRecord.Branch, _currentRecord.Organization, _currentRecord.Ledger, prevMonthPeriod, needsDetail, cancellationToken); } finally { fetchGate.Release(); } }, cancellationToken);
 
-                Task.WhenAll(taskCY, taskPY, taskJanPY, taskJanCY, taskRangeCY, taskRangePY, taskPrior, taskPM).Wait();
+                Task.WhenAll(taskCY, taskPY, taskRangeCY, taskRangePY, taskPrior, taskPM).Wait();
 
-                var currYearData          = taskCY.Result;
-                var prevYearData          = taskPY.Result;
-                var januaryBeginningDataPY = taskJanPY.Result;
-                var januaryBeginningDataCY = taskJanCY.Result;
-                var cumulativeCYData      = taskRangeCY.Result; // null when needsCumulative=false
-                var cumulativePYData      = taskRangePY.Result; // null when needsCumulative=false
-                var prevYearPriorData     = taskPrior.Result;
-                var prevMonthData         = taskPM.Result;
+                var currYearData      = taskCY.Result;
+                var prevYearData      = taskPY.Result;
+                var cumulativeCYData  = taskRangeCY.Result; // null when needsCumulative=false
+                var cumulativePYData  = taskRangePY.Result; // null when needsCumulative=false
+                var prevYearPriorData = taskPrior.Result;
+                var prevMonthData     = taskPM.Result;
 
-                int fetchCount = 7 + (needsCumulative ? 2 : 0);
+                int fetchCount = 5 + (needsCumulative ? 2 : 0);
                 PXTrace.WriteInformation($"[Step 5] {fetchCount} API calls completed (skipped: cumulative={!needsCumulative}) — prevMonth: {prevMonthPeriod}");
 
                 // 6. Run ReportCalculationEngine for all linked definitions.
@@ -186,13 +182,11 @@ namespace FinancialReport.Services
                         definitionLinks,
                         currYearData,
                         prevYearData,
-                        cyOpeningData:    prevYearData,           // BalanceType=Beginning: EndingBalance of prior year-end → CY fiscal opening
-                        pyOpeningData:    prevYearPriorData,      // BalanceType=Beginning: EndingBalance of 2-years-ago year-end → PY fiscal opening
-                        cyJanOpeningData: januaryBeginningDataCY, // BalanceType=JanuaryBeginning: BeginningBalance of 01-{currYear}
-                        pyJanOpeningData: januaryBeginningDataPY, // BalanceType=JanuaryBeginning: BeginningBalance of 01-{prevYear}
-                        cyCumulativeData: cumulativeCYData,       // BalanceType=Debit/Credit/Movement: full-year Jan–Dec CY totals
-                        pyCumulativeData: cumulativePYData,       // BalanceType=Debit/Credit/Movement: full-year Jan–Dec PY totals
-                        pmData:           prevMonthData);         // _PM placeholders: single period of previous month
+                        cyOpeningData:    prevYearData,      // BalanceType=Beginning: EndingBalance of prior year-end → CY fiscal opening
+                        pyOpeningData:    prevYearPriorData, // BalanceType=Beginning: EndingBalance of 2-years-ago year-end → PY fiscal opening
+                        cyCumulativeData: cumulativeCYData,  // BalanceType=Debit/Credit/Movement: full-year Jan–Dec CY totals
+                        pyCumulativeData: cumulativePYData,  // BalanceType=Debit/Credit/Movement: full-year Jan–Dec PY totals
+                        pmData:           prevMonthData);    // _PM placeholders: single period of previous month
 
                     foreach (var kvp in enginePlaceholders)
                         finalPlaceholders[kvp.Key] = kvp.Value;
@@ -212,8 +206,6 @@ namespace FinancialReport.Services
                 prevYearData = null;
                 prevYearPriorData = null;
                 prevMonthData = null;
-                januaryBeginningDataCY = null;
-                januaryBeginningDataPY = null;
                 cumulativeCYData = null;
                 cumulativePYData = null;
 

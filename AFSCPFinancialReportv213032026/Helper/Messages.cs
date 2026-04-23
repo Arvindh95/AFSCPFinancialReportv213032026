@@ -19,7 +19,6 @@ namespace FinancialReport
         // ==================================================
         public const string FailedToFetchOData = "Failed to fetch OData";
         public const string PutRequestFailed = "PUT request failed: {0}";
-        public const string NoAPIFound = "No API credentials found for company";
         public const string NoCompanyIDFound = "No CompanyID found for ReportID {0}.";
 
         // ==================================================
@@ -90,7 +89,6 @@ namespace FinancialReport
         public const string AccountFromRequired = "Account From is required for Account Range line types.";
         public const string AccountToRequired = "Account To is required for Account Range line types.";
         public const string FormulaRequired = "Formula is required for Calculated line types.";
-        public const string ConfirmCopyDefinition = "Copy this Report Definition and all its line items?";
         public const string NoDefinitionLineItems = "Report Definition has no line items configured. Please set up line items in the Report Definition screen.";
         public const string FormulaEvaluationFailed = "Formula evaluation failed for line '{0}': {1}";
         public const string UnknownFormulaLineCode = "Formula references unknown Line Code '{0}'. Ensure it is defined with a lower Sort Order.";
@@ -113,12 +111,5 @@ namespace FinancialReport
         public const string GammaApiKeyNotConfigured = "Presentation API Key is not configured. Please enter your API Key in the Tenant Credentials screen.";
         public const string NoGeneratedPresentation = "No presentation is available for download. Please generate a presentation first.";
         public const string MarkdownPreviewComplete = "Markdown preview saved. Download it from the Files panel (paperclip icon).";
-
-        // ==================================================
-        // GI & COLUMN MAPPING MESSAGES
-        // ==================================================
-        public const string GINameRequired = "Generic Inquiry Name is required to detect columns.";
-        public const string NoColumnsDetected = "No columns were detected from the specified Generic Inquiry. Verify the GI name and that it returns data.";
-        public const string FailedToDetectColumns = "Failed to detect columns from GI '{0}': {1}";
     }
 }

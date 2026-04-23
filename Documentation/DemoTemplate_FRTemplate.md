@@ -51,7 +51,6 @@ Same account range, different balance type on each line.
 | --------------------------------------- | -------------------- | -------------------- |
 | Ending Balance                          | {{DEMO_CASH_CY}}     | {{DEMO_CASH_PY}}     |
 | Beginning Balance (Fiscal Year Opening) | {{DEMO_CASH_BEG_CY}} | {{DEMO_CASH_BEG_PY}} |
-| January Beginning Balance               | {{DEMO_CASH_JAN_CY}} | {{DEMO_CASH_JAN_PY}} |
 | YTD Debit (cumulative)                  | {{DEMO_YTD_DEB_CY}}  | {{DEMO_YTD_DEB_PY}}  |
 | YTD Credit (cumulative)                 | {{DEMO_YTD_CRD_CY}}  | {{DEMO_YTD_CRD_PY}}  |
 | YTD Movement (net)                      | {{DEMO_YTD_MOV_CY}}  | {{DEMO_YTD_MOV_PY}}  |
@@ -149,16 +148,15 @@ Line Items:
 | 90   | NA          | Calculated    |           |         |                   |       |        | TA - TL          | Yes     |
 | 100  | CHECK       | Calculated    |           |         |                   |       |        | TA - TL - EQUITY | Yes     |
 | 110  | CASH_BEG    | Account Range | 10100     | 10199   | Beginning Balance | As-Is |        |                  | Yes     |
-| 120  | CASH_JAN    | Account Range | 10100     | 10199   | January Beginning | As-Is |        |                  | Yes     |
-| 130  | YTD_DEB     | Account Range | 10100     | 10199   | Debit (YTD)       | As-Is |        |                  | Yes     |
-| 140  | YTD_CRD     | Account Range | 10100     | 10199   | Credit (YTD)      | As-Is |        |                  | Yes     |
-| 150  | YTD_MOV     | Account Range | 10100     | 10199   | Movement (YTD)    | As-Is |        |                  | Yes     |
-| 160  | P_DEB       | Account Range | 10100     | 10199   | Period Debit      | As-Is |        |                  | Yes     |
-| 170  | P_CRD       | Account Range | 10100     | 10199   | Period Credit     | As-Is |        |                  | Yes     |
-| 180  | P_MOV       | Account Range | 10100     | 10199   | Period Movement   | As-Is |        |                  | Yes     |
-| 190  | HIDDEN      | Account Range | 10100     | 10199   | Ending Balance    | As-Is |        |                  | No      |
-| 200  | USES_HIDDEN | Calculated    |           |         |                   |       |        | CASH + HIDDEN    | Yes     |
-| 210  | HEADING1    | Heading       |           |         |                   |       |        |                  | No      |
+| 120  | YTD_DEB     | Account Range | 10100     | 10199   | Debit (YTD)       | As-Is |        |                  | Yes     |
+| 130  | YTD_CRD     | Account Range | 10100     | 10199   | Credit (YTD)      | As-Is |        |                  | Yes     |
+| 140  | YTD_MOV     | Account Range | 10100     | 10199   | Movement (YTD)    | As-Is |        |                  | Yes     |
+| 150  | P_DEB       | Account Range | 10100     | 10199   | Period Debit      | As-Is |        |                  | Yes     |
+| 160  | P_CRD       | Account Range | 10100     | 10199   | Period Credit     | As-Is |        |                  | Yes     |
+| 170  | P_MOV       | Account Range | 10100     | 10199   | Period Movement   | As-Is |        |                  | Yes     |
+| 180  | HIDDEN      | Account Range | 10100     | 10199   | Ending Balance    | As-Is |        |                  | No      |
+| 190  | USES_HIDDEN | Calculated    |           |         |                   |       |        | CASH + HIDDEN    | Yes     |
+| 200  | HEADING1    | Heading       |           |         |                   |       |        |                  | No      |
 
 ---
 

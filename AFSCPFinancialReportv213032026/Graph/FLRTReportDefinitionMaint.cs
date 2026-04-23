@@ -1,12 +1,8 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
 using PX.Data;
 using PX.Data.BQL;
 using PX.Data.BQL.Fluent;
 using FinancialReport.Helper;
-using FinancialReport.Services;
 
 namespace FinancialReport
 {
@@ -38,7 +34,6 @@ namespace FinancialReport
             PXUIFieldAttribute.SetEnabled<FLRTReportDefinition.definitionCD>(e.Cache, e.Row, isNewRecord);
             // Prefix is also locked once saved to prevent breaking existing Word templates
             PXUIFieldAttribute.SetEnabled<FLRTReportDefinition.definitionPrefix>(e.Cache, e.Row, isNewRecord);
-            Actions["detectColumns"]?.SetEnabled(!string.IsNullOrWhiteSpace(e.Row.GIName));
         }
 
         protected void _(Events.RowPersisting<FLRTReportDefinition> e)
@@ -227,168 +222,6 @@ namespace FinancialReport
         public new PXPrevious<FLRTReportDefinition> Previous;
         public new PXNext<FLRTReportDefinition> Next;
         public new PXLast<FLRTReportDefinition> Last;
-
-        /// <summary>
-        /// Copies an existing definition (header + all line items) as a new definition.
-        /// Useful for creating a variant of an existing report (e.g. BS → BS_NOTES).
-        /// </summary>
-        [PXButton(CommitChanges = true)]
-        [PXUIField(DisplayName = "Copy Definition")]
-        public virtual IEnumerable copyDefinition(PXAdapter adapter)
-        {
-            var source = ReportDefinition.Current;
-            if (source == null) return adapter.Get();
-
-            if (ReportDefinition.Ask(Messages.ConfirmCopyDefinition, MessageButtons.YesNo) != WebDialogResult.Yes)
-                return adapter.Get();
-
-            // Build a unique copy prefix (truncate source prefix to 7 chars + "CP" suffix to stay within 10 chars)
-            string copyPrefix = string.IsNullOrWhiteSpace(source.DefinitionPrefix)
-                ? "COPY"
-                : (source.DefinitionPrefix.Length > 7
-                    ? source.DefinitionPrefix.Substring(0, 7) + "CP"
-                    : source.DefinitionPrefix + "CP");
-
-            var newDef = new FLRTReportDefinition
-            {
-                DefinitionCD       = source.DefinitionCD + "_COPY",
-                DefinitionPrefix   = copyPrefix,
-                Description        = source.Description + " (Copy)",
-                ReportType         = source.ReportType,
-                IsActive           = true,
-                GIName             = source.GIName,
-                AccountColumn      = source.AccountColumn,
-                TypeColumn         = source.TypeColumn,
-                BeginningBalColumn = source.BeginningBalColumn,
-                EndingBalColumn    = source.EndingBalColumn,
-                DebitColumn        = source.DebitColumn,
-                CreditColumn       = source.CreditColumn,
-                RoundingLevel      = source.RoundingLevel,
-                DecimalPlaces      = source.DecimalPlaces
-            };
-            newDef = ReportDefinition.Insert(newDef);
-
-            // Copy all line items
-            var sourceLines = SelectFrom<FLRTReportLineItem>
-                .Where<FLRTReportLineItem.definitionID.IsEqual<@P.AsInt>>
-                .OrderBy<FLRTReportLineItem.sortOrder.Asc>
-                .View.Select(this, source.DefinitionID);
-
-            foreach (FLRTReportLineItem sourceLine in sourceLines)
-            {
-                var newLine = LineItems.Insert(new FLRTReportLineItem
-                {
-                    DefinitionID      = newDef.DefinitionID,
-                    SortOrder         = sourceLine.SortOrder,
-                    LineCode          = sourceLine.LineCode,
-                    Description       = sourceLine.Description,
-                    LineType          = sourceLine.LineType,
-                    AccountFrom       = sourceLine.AccountFrom,
-                    AccountTo         = sourceLine.AccountTo,
-                    AccountTypeFilter = sourceLine.AccountTypeFilter,
-                    SignRule          = sourceLine.SignRule,
-                    BalanceType       = sourceLine.BalanceType,
-                    ParentLineCode    = sourceLine.ParentLineCode,
-                    Formula           = sourceLine.Formula,
-                    IsVisible         = sourceLine.IsVisible
-                });
-            }
-
-            Actions.PressSave();
-            ReportDefinition.Current = newDef;
-            return adapter.Get();
-        }
-
-        /// <summary>
-        /// Detects available columns from the specified GI by fetching a single row
-        /// and auto-maps them to the column mapping fields.
-        /// </summary>
-        [PXButton(CommitChanges = true)]
-        [PXUIField(DisplayName = "Detect Columns")]
-        public virtual IEnumerable detectColumns(PXAdapter adapter)
-        {
-            var def = ReportDefinition.Current;
-            if (def == null) return adapter.Get();
-
-            string giName = def.GIName;
-            if (string.IsNullOrWhiteSpace(giName))
-            {
-                throw new PXException(Messages.GINameRequired);
-            }
-
-            var credential = SelectFrom<FLRTTenantCredentials>.View.SelectSingleBound(this, null);
-            if (credential == null)
-            {
-                throw new PXException(Messages.NoAPIFound);
-            }
-
-            FLRTTenantCredentials cred = (FLRTTenantCredentials)credential;
-            string tenantName = cred.TenantName;
-
-            try
-            {
-                var authService = new AuthService(cred.BaseURL, cred.ClientIDNew, cred.ClientSecretNew, cred.UsernameNew, cred.PasswordNew);
-                var dataService = new FinancialDataService(authService, tenantName);
-                List<string> columns = dataService.FetchGIColumns(giName);
-
-                if (columns == null || columns.Count == 0)
-                {
-                    throw new PXException(Messages.NoColumnsDetected);
-                }
-
-                PXTrace.WriteInformation($"Detected {columns.Count} columns from GI '{giName}': {string.Join(", ", columns)}");
-
-                AutoMapColumns(def, columns);
-
-                ReportDefinition.Update(def);
-                ReportDefinition.View.RequestRefresh();
-            }
-            catch (PXException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                throw new PXException(Messages.FailedToDetectColumns, giName, ex.Message);
-            }
-
-            return adapter.Get();
-        }
-
-        /// <summary>
-        /// Auto-maps GI column names to definition column mapping fields
-        /// using case-insensitive name matching.
-        /// </summary>
-        private void AutoMapColumns(FLRTReportDefinition def, List<string> columns)
-        {
-            string acctCol = columns.FirstOrDefault(c => string.Equals(c, "Account", StringComparison.OrdinalIgnoreCase))
-                          ?? columns.FirstOrDefault(c => c.IndexOf("Account", StringComparison.OrdinalIgnoreCase) >= 0
-                                                      && c.IndexOf("Sub", StringComparison.OrdinalIgnoreCase) < 0);
-            if (acctCol != null) def.AccountColumn = acctCol;
-
-            string typeCol = columns.FirstOrDefault(c => string.Equals(c, "Type", StringComparison.OrdinalIgnoreCase))
-                          ?? columns.FirstOrDefault(c => c.IndexOf("AccountType", StringComparison.OrdinalIgnoreCase) >= 0)
-                          ?? columns.FirstOrDefault(c => c.IndexOf("Type", StringComparison.OrdinalIgnoreCase) >= 0);
-            if (typeCol != null) def.TypeColumn = typeCol;
-
-            string begCol = columns.FirstOrDefault(c => c.IndexOf("BeginningBalance", StringComparison.OrdinalIgnoreCase) >= 0)
-                         ?? columns.FirstOrDefault(c => c.IndexOf("Beginning", StringComparison.OrdinalIgnoreCase) >= 0)
-                         ?? columns.FirstOrDefault(c => c.IndexOf("BegBal", StringComparison.OrdinalIgnoreCase) >= 0);
-            if (begCol != null) def.BeginningBalColumn = begCol;
-
-            string endCol = columns.FirstOrDefault(c => c.IndexOf("EndingBalance", StringComparison.OrdinalIgnoreCase) >= 0)
-                         ?? columns.FirstOrDefault(c => c.IndexOf("Ending", StringComparison.OrdinalIgnoreCase) >= 0)
-                         ?? columns.FirstOrDefault(c => c.IndexOf("YtdBalance", StringComparison.OrdinalIgnoreCase) >= 0);
-            if (endCol != null) def.EndingBalColumn = endCol;
-
-            string debitCol = columns.FirstOrDefault(c => string.Equals(c, "Debit", StringComparison.OrdinalIgnoreCase))
-                           ?? columns.FirstOrDefault(c => c.IndexOf("Debit", StringComparison.OrdinalIgnoreCase) >= 0);
-            if (debitCol != null) def.DebitColumn = debitCol;
-
-            string creditCol = columns.FirstOrDefault(c => string.Equals(c, "Credit", StringComparison.OrdinalIgnoreCase))
-                            ?? columns.FirstOrDefault(c => c.IndexOf("Credit", StringComparison.OrdinalIgnoreCase) >= 0);
-            if (creditCol != null) def.CreditColumn = creditCol;
-        }
 
         #endregion
     }

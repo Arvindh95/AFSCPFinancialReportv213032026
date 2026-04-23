@@ -78,7 +78,6 @@ The grid at the bottom is where you define each line of the financial report.
 |---|---|---|
 | Ending Balance | Balance at end of selected period | Balance Sheet items (most common) |
 | Beginning Balance | Fiscal year opening balance | Opening balances, equity movements |
-| January Beginning | Opening balance of January specifically | Calendar-year companies only |
 | Debit (YTD) | Cumulative debits for the full fiscal year | P&L analysis, cash flow |
 | Credit (YTD) | Cumulative credits for the full fiscal year | P&L analysis, cash flow |
 | Movement (YTD) | Net movement (Debit - Credit) for fiscal year | P&L items |

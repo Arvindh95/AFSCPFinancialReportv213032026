@@ -437,7 +437,7 @@ BEGIN
     BEGIN ALTER TABLE [dbo].[FLRTReportLineItem] ADD [NoteID] [uniqueidentifier] NULL
           PRINT '  + NoteID' END
 
-    -- Expand BalanceType to NVARCHAR(15) if still at old size (JANBEGINNING=12 chars, PMOVEMENT=9 chars)
+    -- Expand BalanceType to NVARCHAR(15) if still at old size (longest value PMOVEMENT = 9 chars; 15 leaves headroom)
     IF EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
                WHERE TABLE_NAME = 'FLRTReportLineItem' AND COLUMN_NAME = 'BalanceType'
                  AND CHARACTER_MAXIMUM_LENGTH < 15)

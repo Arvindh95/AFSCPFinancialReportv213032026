@@ -49,7 +49,7 @@ documents or PowerPoint slides.
 - Current Year (CY), Previous Year (PY), and Previous Month (PM) comparisons
 - Configurable rounding (Units / Thousands / Millions) with 0–2 decimal places
 - Sign flipping for liability/income/equity accounts
-- Multiple balance types: Ending, Beginning, January Beginning, Debit, Credit, Movement, Period-specific
+- Multiple balance types: Ending, Beginning, Debit, Credit, Movement, Period-specific
 - Dimension-level filtering: Subaccount, Branch, Organization, Ledger per line item
 - Generic Inquiry data sources with aggregation, multi-row expansion, and calculated columns
 - Encrypted credential storage using Acumatica's RSA encryption
@@ -189,7 +189,6 @@ Each row in the grid defines one line of the financial report.
 |-------------------------|-------------|
 | Ending Balance          | The ending balance for the selected period. Most common for Balance Sheet items. |
 | Beginning Balance       | The ending balance of the prior fiscal year-end period (i.e., the opening balance for the current fiscal year). |
-| January Beginning Balance | The beginning balance of period 01 of the selected year. Best for calendar-year fiscal periods. |
 | Debit (YTD)             | Year-to-date cumulative debit from fiscal year start to selected month. |
 | Credit (YTD)            | Year-to-date cumulative credit from fiscal year start to selected month. |
 | Movement (YTD)          | Year-to-date net movement (Debit - Credit) from fiscal year start to selected month. |
@@ -310,7 +309,7 @@ Use **Reset Status** to return to "File not Generated" from any state.
 
 ### Performance Notes
 
-- The system fetches data in parallel (CY, PY, PM, January balances, cumulative ranges)
+- The system fetches data in parallel (CY, PY, PM, cumulative ranges)
 - Optional fetches (cumulative Debit/Credit/Movement, Previous Month) are skipped if no line items or template placeholders require them
 - A 15-minute timeout protects against runaway generation processes
 - Temporary files are cleaned up automatically after generation
@@ -495,7 +494,6 @@ For backward compatibility, raw account-code placeholders are also supported:
 |----------------------|-------------|
 | `{{A10100_CY}}`      | Ending balance of account A10100 for current year |
 | `{{A10100_PY}}`      | Ending balance of account A10100 for previous year |
-| `{{A10100_Jan1_CY}}` | January beginning balance of account A10100 |
 | `{{A10100_credit_CY}}`| Credit balance of account A10100 |
 | `{{A10100:A10199_e_CY}}`| Sum of ending balances for account range A10100–A10199 |
 
@@ -586,8 +584,6 @@ The system fetches multiple datasets in parallel:
 | CY (Current Year)    | Ending balance for the selected period |
 | PY (Previous Year)   | Ending balance for the same month in the prior year |
 | Prior Year Prior     | Ending balance 2 years ago (for PY opening balance) |
-| January CY           | Beginning balance of January current year |
-| January PY           | Beginning balance of January prior year |
 | Cumulative CY        | Full fiscal year range for YTD Debit/Credit/Movement |
 | Cumulative PY        | Full fiscal year range for PY YTD values |
 | Previous Month       | Single period for month-over-month comparison |
