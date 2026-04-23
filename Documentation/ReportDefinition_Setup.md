@@ -3,17 +3,19 @@
 This document describes how to create an **AFS Report Definition**. A Report Definition is the blueprint that tells the Financial Report engine:
 
 1. Which **Generic Inquiry (GI)** to pull GL data from,
-2. Which **columns** on that GI carry the balance figures, and
+2. Which **columns** on that GI carry the balance figures, filter keys, and period tags, and
 3. Which **line items** (account ranges, subtotals, calculated lines, headings) to emit as placeholders in the final report.
 
 One definition is typically created per statement type (Balance Sheet, P&L, Cash Flow, etc.) and then linked to the **Financial Report (FR301000)** or **Presentation Generation (FR301001)** screen.
+
+> **Period model.** All balances surfaced by a definition are **fiscal-year-to-date** figures (FY start → selected period end). Each visible line emits **two** placeholders: `_CY` (current year) and `_PY` (previous year). There is no single-period / month-only balance type.
 
 ---
 
 ## Prerequisites
 
 - Tenant credentials already saved in [Tenant Credentials (FR101001)](01_TenantCredentials_Setup.md).
-- A Generic Inquiry is published that exposes the GL balances you want to consume. The default GI is named **`TrialBalance`**; any GI with account/balance columns works.
+- A Generic Inquiry is published that exposes the GL balances you want to consume. The stock GI is **`AFS-Trial-Balance`**; any GI with account / balance / period columns works.
 - You know the GL account ranges that make up each line of the statement you are modelling.
 
 ---
@@ -34,21 +36,20 @@ One definition is typically created per statement type (Balance Sheet, P&L, Cash
 
 Click the **+** (Add) button. The **Definition Code** field shows `<NEW>` until saved.
 
-![New empty record](images/report_definition/reportdef_01_new_record.png)
-
 ---
 
 ### Step 3 — Fill the Header
 
-Enter the three required header fields:
+Enter the four required header fields:
 
 | Field                | Example             | Notes                                                                                                                                             |
 | -------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Definition Code**  | `DEMO-BS`           | Unique key, max 50 chars. This is the code the Financial Report / Presentation screen will select.                                                |
 | **Prefix**           | `DB`                | Short alphanumeric tag, max 10 chars (`^[A-Za-z0-9]+$` — letters and digits only, no separators). Namespaces all placeholders emitted by this definition, e.g. `{{DB_TOTAL_ASSETS_CY}}`. **Must be unique across all definitions in the tenant.** |
 | **Description**      | `Demo Balance Sheet`| Free-text label, max 255 chars. Appears in the selector dropdown on downstream screens.                                                           |
+| **Report Type**      | `Balance Sheet`     | Metadata tag — see Step 4.                                                                                                                        |
 
-![Header filled — Definition Code, Prefix, Description](images/report_definition/reportdef_02_header_filled.png)
+![Header filled — TESTER record showing Definition Code, Prefix, Report Type, and Data Source](images/report_definition/reportdef_02_header_filled.png)
 
 ---
 
@@ -64,7 +65,7 @@ Enter the three required header fields:
 | `EQ`  | Changes in Equity    |
 | `CU`  | Custom               |
 
-![Report Type dropdown open](images/report_definition/reportdef_04_reporttype_dropdown.png)
+![Report Type dropdown open — 5 values](images/report_definition/reportdef_03_reporttype_dropdown.png)
 
 Also visible on the same header row:
 
@@ -74,38 +75,47 @@ Also visible on the same header row:
 
 ### Step 5 — Pick the Generic Inquiry
 
-**Generic Inquiry Name** drives *where* the engine pulls GL balances from. Defaults to **`TrialBalance`**. Use the selector (magnifier icon) to pick any published GI.
+**Generic Inquiry Name** drives *where* the engine pulls GL balances from. Defaults to **`AFS-Trial-Balance`**. Use the selector (magnifier icon) to pick any published GI.
 
 ![Generic Inquiry selector](images/report_definition/reportdef_03_gi_selector.png)
 
 The selector lists all `GIDesign` records in the tenant. Any GI that returns rows keyed by account with balance figures can be used — the column mapping in Step 6 tells the engine which GI column carries each concept.
 
-After saving, the header is populated and ready for column mapping:
-
-![Header populated after GI selection](images/report_definition/reportdef_03_header_populated.png)
-
 ---
 
-### Step 6 — Map the GI Columns
+### Step 6 — Map the GI Columns (Data Source)
 
-This section tells the engine *which column in the chosen GI* holds each balance concept. Each field is a **GI-column selector** — it only shows columns that exist on the GI picked in Step 5.
+This section tells the engine *which column in the chosen GI* holds each balance concept, filter key, or period tag. Each field is a **GI-column selector** — it only shows columns that exist on the GI picked in Step 5. The defaults match Acumatica's stock **`AFS-Trial-Balance`** GI.
 
-| Field                     | Default Column       | Purpose                                                                                   |
-| ------------------------- | -------------------- | ----------------------------------------------------------------------------------------- |
-| **Account Column**        | `Account`            | Column that returns the GL account code. Used for account-range filtering.                |
-| **Account Type Column**   | `Type`               | Column returning `A/L/E/I/Q`. Used by the optional *Account Type Filter* on line items.   |
-| **Beginning Balance Column** | `BeginningBalance`| Opening balance at the start of the fiscal year.                                          |
-| **Ending Balance Column** | `EndingBalance`      | Closing balance for the selected period (most common balance type).                       |
-| **Debit Column**          | `Debit`              | YTD debit movement.                                                                       |
-| **Credit Column**         | `Credit`             | YTD credit movement.                                                                      |
+#### Balance columns
 
-> The defaults match Acumatica's stock **TrialBalance** GI. If you clone or customize that GI, rename the columns here to match.
+| Field                      | Default Column       | Purpose                                                                              |
+| -------------------------- | -------------------- | ------------------------------------------------------------------------------------ |
+| **Account Column**         | `Account`            | GL account code. Used for account-range filtering on `ACCOUNT` lines.                |
+| **Account Type Column**    | `Type`               | Returns `A/L/E/I/Q`. Drives automatic account-type sign normalization and the optional *Account Type Filter* on line items. |
+| **Beginning Balance Column** | `BeginningBalance` | Opening balance at the start of the fiscal year. Read when `Balance Type = BEGINNING`.|
+| **Ending Balance Column**  | `EndingBalance`      | Closing balance as at the selected period end. Read when `Balance Type = ENDING` *(default)*. |
+| **Debit Column**           | `Debit`              | Fiscal-year-to-date debit sum. Read when `Balance Type = DEBIT`.                     |
+| **Credit Column**          | `Credit`             | Fiscal-year-to-date credit sum. Read when `Balance Type = CREDIT`.                   |
+| **Movement Column**        | `Movement`           | Fiscal-year-to-date net movement (`Debit − Credit`). Read when `Balance Type = MOVEMENT`. |
+
+#### Period & filter columns
+
+| Field                    | Default Column      | Purpose                                                                                  |
+| ------------------------ | ------------------- | ---------------------------------------------------------------------------------------- |
+| **Period Column**        | `FinancialPeriod`   | Period tag on each GI row (e.g. `04-2026`). The engine uses this to slice CY vs PY rows. |
+| **Subaccount Column**    | `Subaccount`        | Column holding the Subaccount code. Referenced by the optional **Subaccount Filter** on each line item. |
+| **Branch Column**        | `BranchID`          | Branch code column. Referenced by **Branch Filter**.                                     |
+| **Organization Column**  | `OrganizationID`    | Organization code column. Referenced by **Organization Filter**.                         |
+| **Ledger Column**        | `LedgerID`          | Ledger code column. Referenced by **Ledger Filter**.                                     |
+
+> If you clone or customize the stock GI, rename these columns here to match the new field names. All 13 mappings are required — save is blocked if any are blank.
 
 ![Account Column selector open](images/report_definition/reportdef_04_accountcolumn_selector.png)
 
 ---
 
-### Step 7 — Configure Rounding
+### Step 7 — Configure Formatting (Rounding)
 
 Controls how numeric placeholders are formatted when they appear in the final Word / markdown output.
 
@@ -114,7 +124,7 @@ Controls how numeric placeholders are formatted when they appear in the final Wo
 | **Rounding Level**   | `UNITS` (default), `THOUS`, `MILL`    | Divides all numbers by 1 / 1,000 / 1,000,000 before rendering.                   |
 | **Decimal Places**   | `0` (default), `1`, `2`               | Digits shown after the decimal point.                                            |
 
-![Rounding Level dropdown](images/report_definition/reportdef_05_rounding_dropdown.png)
+![Formatting section expanded — Rounding Level = Units, Decimal Places = 0](images/report_definition/reportdef_04_formatting_rounding.png)
 
 Example: With Rounding Level = `THOUS` and Decimal Places = `1`, a raw value of `1,234,567.89` renders as `1,234.6`.
 
@@ -124,23 +134,23 @@ Example: With Rounding Level = `THOUS` and Decimal Places = `1`, a raw value of 
 
 ## Line Items Grid
 
-Each row in **Line Items** is a single placeholder that will appear in the generated report. The engine calculates one CY / PM / PY value per visible row. The grid columns are as follows.
+Each row in **Line Items** is a single placeholder that will appear in the generated report. The engine calculates one CY and one PY value per visible row. The grid columns are as follows.
 
-![Line Items grid with first row](images/report_definition/reportdef_05_lineitem_row.png)
+![Line Items grid — TESTER record with 5 rows demonstrating all 5 balance types](images/report_definition/reportdef_05_line_items_grid.png)
 
 ### Columns — overview
 
 | Column                 | Required         | Description                                                                                                                                           |
 | ---------------------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Sort Order**         | yes              | Integer controlling row order in the report. Lines are emitted in ascending `SortOrder`.                                                              |
-| **Line Code**          | yes              | Unique token within this definition (≤100 chars). Forms the placeholder key, e.g. `CASH` → `{{DB_CASH_CY}}`, `{{DB_CASH_PM}}`, `{{DB_CASH_PY}}`.     |
+| **Line Code**          | yes              | Unique token within this definition (≤100 chars). Forms the placeholder key, e.g. `CASH` → `{{DB_CASH_CY}}`, `{{DB_CASH_PY}}`.                        |
 | **Description**        | yes if visible   | Human-readable label, shown in the generated markdown table.                                                                                          |
 | **Line Type**          | yes              | Determines how the engine computes this line. See table below.                                                                                        |
 | **Account From / To**  | Account lines    | Inclusive GL account range to sum. Example: `10000`…`10999`.                                                                                          |
 | **Account Type Filter**| optional         | Restrict the range to a single GL account type.                                                                                                       |
 | **Sign Rule**          | Account lines    | `ASIS` keeps the raw GL sign; `FLIP` multiplies by −1 for presentation (typical for Liability / Income / Equity).                                     |
-| **Balance Type**       | Account lines    | Which GI balance column to read (Ending, YTD movement, period movement, etc.).                                                                        |
-| **Group / Parent Line**| Subtotal lines   | The `LineCode` whose children this subtotal sums. Example: child rows CASH, AR, INV all set Parent = `CURRENT_ASSETS`.                                |
+| **Balance Type**       | Account lines    | Which GI balance column to read. Five options — all fiscal-year-to-date except the two point-in-time balances. See [Balance Type values](#balance-type-values). |
+| **Group / Parent Line**| Subtotal children | The subtotal `LineCode` this row rolls up into. Example: child rows CASH, AR, INV all set Parent = `CURRENT_ASSETS`.                                  |
 | **Formula**            | Calculated lines | Arithmetic expression over other `LineCode`s using `+ − × ÷` and parentheses. Example: `REVENUE - COGS`. References may also cross definitions using the fully qualified `<Prefix>_<LineCode>` form — see [Cross-Definition Formulas](#cross-definition-formulas). |
 | **Visible in Report**  | yes              | Default true. Uncheck to keep the value internal (usable in formulas / subtotals) without emitting a placeholder.                                     |
 | **Subaccount Filter**  | optional         | Exact-match subaccount, e.g. `000-000`. Blank = all subaccounts.                                                                                      |
@@ -161,26 +171,25 @@ Each row in **Line Items** is a single placeholder that will appear in the gener
 | `CALCULATED` | Calculated     | Evaluate `Formula` at runtime, referencing other `LineCode`s. Supports `+ − × ÷` and parentheses.                                |
 | `HEADING`    | Heading        | Display-only. No value is computed; used to emit a section header into the report.                                               |
 
-![Line Code typed (CASH)](images/report_definition/reportdef_06_linecode_typed.png)
+![Line Type dropdown open — 4 values](images/report_definition/reportdef_07_line_type_dropdown.png)
 
 ---
 
 ### Balance Type values
 
-Applies only to `ACCOUNT` lines. Determines which column from the GI mapping is read.
+Applies only to `ACCOUNT` lines. Determines which column from the GI mapping is read. All movement figures (`DEBIT`, `CREDIT`, `MOVEMENT`) are **fiscal-year-to-date** — they accumulate from the FY start through the selected period end. There is no single-month balance type.
 
-| Code          | Label                        | Column used                  |
-| ------------- | ---------------------------- | ---------------------------- |
-| `ENDING`      | Ending Balance *(default)*   | **Ending Balance Column**    |
-| `BEGINNING`   | Beginning Balance            | **Beginning Balance Column** |
-| `DEBIT`       | Debit (YTD)                  | **Debit Column**             |
-| `CREDIT`      | Credit (YTD)                 | **Credit Column**            |
-| `MOVEMENT`    | Movement (YTD)               | `Debit − Credit` YTD         |
-| `PDEBIT`      | Period Debit                 | Debit for the selected single period. |
-| `PCREDIT`     | Period Credit                | Credit for the selected single period. |
-| `PMOVEMENT`   | Period Movement              | `Debit − Credit` for the selected single period. |
+| Code        | Label              | Column used                    | Typical use                                                    |
+| ----------- | ------------------ | ------------------------------ | -------------------------------------------------------------- |
+| `ENDING`    | Ending Balance *(default)* | **Ending Balance Column**    | Balance Sheet lines (point-in-time snapshot at period end).    |
+| `BEGINNING` | Beginning Balance  | **Beginning Balance Column**   | Opening-balance columns, equity roll-forwards.                 |
+| `DEBIT`     | Debit (YTD)        | **Debit Column**               | Gross debit activity FY-to-date.                               |
+| `CREDIT`    | Credit (YTD)       | **Credit Column**              | Gross credit activity FY-to-date.                              |
+| `MOVEMENT`  | Movement (YTD)     | **Movement Column** (`Debit − Credit` FY-to-date) | P&L lines — revenue, expenses, net movement FY-to-date. |
 
-> Use `PDEBIT / PCREDIT / PMOVEMENT` for monthly P&L lines. Use `ENDING` for Balance Sheet lines.
+![Balance Type dropdown open — 5 values](images/report_definition/reportdef_06_balance_type_dropdown.png)
+
+> **Why no single-period (month-only) balance type?** The stock AFS workflow reports fiscal-year performance (CY vs prior-year CY). If you need a month-only view, filter the underlying GI by period, or compute the delta in the template (`{{BS_X_CY}} - {{BS_X_PY}}`).
 
 ---
 
@@ -195,6 +204,8 @@ Sign handling is **two-stage** inside the engine:
 | ------ | ----------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ASIS` | As-Is       | no extra multiply  | **Default — correct for nearly every line.** The engine has already normalized credit-normal types for you.                                                    |
 | `FLIP` | Flip Sign   | `× −1`             | Use only when (a) the GI's type column is blank/unmapped so automatic normalization did not fire, or (b) you specifically want the opposite of the normal sign. |
+
+![Sign Rule dropdown open — As-Is / Flip Sign](images/report_definition/reportdef_08_sign_rule_dropdown.png)
 
 > **Gotcha.** Setting `FLIP` on a Liability/Income/Equity line when the type column *is* populated will double-flip (`−1 × −1 = +1` relative to raw, i.e. a negative value on the statement). If liabilities show up negative after generation, check this column first.
 
@@ -274,19 +285,17 @@ Visible     : ✓   (unchecked headings are discarded silently)
 
 ## Placeholder Key Format
 
-Each visible line emits three placeholders into the report:
+Each visible line emits **two** placeholders into the report:
 
 ```
-{{<Prefix>_<LineCode>_CY}}   → current period
-{{<Prefix>_<LineCode>_PM}}   → previous month, same year
-{{<Prefix>_<LineCode>_PY}}   → same month, previous year
+{{<Prefix>_<LineCode>_CY}}   → current year, fiscal-year-to-date through selected period
+{{<Prefix>_<LineCode>_PY}}   → previous year, same fiscal-year-to-date window
 ```
 
 Example — with **Prefix = DB** and **Line Code = CASH**:
 
 ```
 {{DB_CASH_CY}}
-{{DB_CASH_PM}}
 {{DB_CASH_PY}}
 ```
 
@@ -300,16 +309,16 @@ This example walks through a complete **Balance Sheet** definition: the raw GL d
 
 ### 1 — Raw GI data (input)
 
-Assume the `TrialBalance` GI returns the following rows for the reporting period **April 2026** (Branch = `MAIN`, Ledger = `ACTUAL`):
+Assume the `AFS-Trial-Balance` GI returns the following rows as at **end of April 2026** (Branch = `MAIN`, Ledger = `ACTUAL`):
 
-| Account | Type | BeginningBalance | EndingBalance | Debit    | Credit   |
-| ------- | ---- | ---------------- | ------------- | -------- | -------- |
-| 10100   | A    | 40,000.00        | 52,500.00     | 18,000   | 5,500    |
-| 10200   | A    | 80,000.00        | 96,000.00     | 30,000   | 14,000   |
-| 10300   | A    | 25,000.00        | 31,500.00     | 10,000   | 3,500    |
-| 20100   | L    | −20,000.00       | −28,000.00    | 2,000    | 10,000   |
-| 20200   | L    | −50,000.00       | −60,000.00    | 5,000    | 15,000   |
-| 30100   | Q    | −75,000.00       | −92,000.00    | 0        | 17,000   |
+| Account | Type | BeginningBalance | EndingBalance | Debit (YTD) | Credit (YTD) | Movement (YTD) |
+| ------- | ---- | ---------------- | ------------- | ----------- | ------------ | -------------- |
+| 10100   | A    | 40,000.00        | 52,500.00     | 18,000      | 5,500        | 12,500         |
+| 10200   | A    | 80,000.00        | 96,000.00     | 30,000      | 14,000       | 16,000         |
+| 10300   | A    | 25,000.00        | 31,500.00     | 10,000      | 3,500        | 6,500          |
+| 20100   | L    | −20,000.00       | −28,000.00    | 2,000       | 10,000       | −8,000         |
+| 20200   | L    | −50,000.00       | −60,000.00    | 5,000       | 15,000       | −10,000        |
+| 30100   | Q    | −75,000.00       | −92,000.00    | 0           | 17,000       | −17,000        |
 
 > Liabilities and Equity carry negative signs at the GL level (credit-normal). The engine's automatic **account-type normalization** (see [Sign Rule values](#sign-rule-values)) converts these to positive for presentation before Sign Rule is applied. All lines below use `Sign Rule = ASIS` — the engine has already done the sign work.
 
@@ -321,15 +330,21 @@ Prefix          : DB
 Description     : Demo Balance Sheet
 Report Type     : Balance Sheet
 Active          : ✓
-Generic Inquiry : TrialBalance
-Account Column     : Account
-Account Type Col   : Type
-Beginning Bal Col  : BeginningBalance
-Ending Bal Col     : EndingBalance
-Debit Column       : Debit
-Credit Column      : Credit
-Rounding Level     : UNITS
-Decimal Places     : 0
+Generic Inquiry : AFS-Trial-Balance
+Account Column      : Account
+Account Type Col    : Type
+Beginning Bal Col   : BeginningBalance
+Ending Bal Col      : EndingBalance
+Debit Column        : Debit
+Credit Column       : Credit
+Movement Column     : Movement
+Period Column       : FinancialPeriod
+Subaccount Column   : Subaccount
+Branch Column       : BranchID
+Organization Column : OrganizationID
+Ledger Column       : LedgerID
+Rounding Level      : UNITS
+Decimal Places      : 0
 ```
 
 ### 3 — Line Items grid
@@ -368,19 +383,19 @@ Decimal Places     : 0
 
 With **Prefix = `DB`**, the engine writes the following key/value pairs into the placeholder dictionary (the same keys appear in the generated markdown and in any Word template mail-merge):
 
-| Placeholder              | Value (April 2026 / CY) |
-| ------------------------ | ----------------------- |
-| `{{DB_CASH_CY}}`         | `52,500`                |
-| `{{DB_AR_CY}}`           | `96,000`                |
-| `{{DB_INVENTORY_CY}}`    | `31,500`                |
-| `{{DB_CURRENT_ASSETS_CY}}` | `180,000`             |
-| `{{DB_AP_CY}}`           | `28,000`                |
-| `{{DB_LOAN_CY}}`         | `60,000`                |
-| `{{DB_TOTAL_LIAB_CY}}`   | `88,000`                |
-| `{{DB_EQUITY_CY}}`       | `92,000`                |
-| `{{DB_CHECK_TOTAL_CY}}`  | `0`                     |
+| Placeholder                | Value (April-2026 CY / FY-to-date) |
+| -------------------------- | ---------------------------------- |
+| `{{DB_CASH_CY}}`           | `52,500`                           |
+| `{{DB_AR_CY}}`             | `96,000`                           |
+| `{{DB_INVENTORY_CY}}`      | `31,500`                           |
+| `{{DB_CURRENT_ASSETS_CY}}` | `180,000`                          |
+| `{{DB_AP_CY}}`             | `28,000`                           |
+| `{{DB_LOAN_CY}}`           | `60,000`                           |
+| `{{DB_TOTAL_LIAB_CY}}`     | `88,000`                           |
+| `{{DB_EQUITY_CY}}`         | `92,000`                           |
+| `{{DB_CHECK_TOTAL_CY}}`    | `0`                                |
 
-Each key is also emitted with suffixes `_PM` (prior month, same year) and `_PY` (same month, prior year), computed against the March 2026 and April 2025 GI rows respectively.
+Each key is **also** emitted with a `_PY` suffix — same formula evaluated against the prior-year GI rows (April 2025, same FY-to-date window).
 
 > Heading rows (`HDR_ASSETS`, `HDR_LIAB_EQ`) do **not** emit placeholders — they only print the description as a section header in the markdown.
 
@@ -388,11 +403,11 @@ Each key is also emitted with suffixes `_PM` (prior month, same year) and `_PY` 
 
 If you switch **Rounding Level = `THOUS`** and **Decimal Places = `1`**, the same placeholders render as:
 
-| Placeholder              | UNITS / 0   | THOUS / 1   |
-| ------------------------ | ----------- | ----------- |
-| `{{DB_CASH_CY}}`         | `52,500`    | `52.5`      |
-| `{{DB_CURRENT_ASSETS_CY}}` | `180,000` | `180.0`     |
-| `{{DB_EQUITY_CY}}`       | `92,000`    | `92.0`      |
+| Placeholder                | UNITS / 0   | THOUS / 1   |
+| -------------------------- | ----------- | ----------- |
+| `{{DB_CASH_CY}}`           | `52,500`    | `52.5`      |
+| `{{DB_CURRENT_ASSETS_CY}}` | `180,000`   | `180.0`     |
+| `{{DB_EQUITY_CY}}`         | `92,000`    | `92.0`      |
 
 Useful when the audience is senior management and you want figures in thousands or millions.
 
@@ -400,22 +415,24 @@ Useful when the audience is senior management and you want figures in thousands 
 
 ## End-to-End Example — Mini Profit & Loss
 
-A parallel P&L definition that feeds off the **same** April 2026 GI. This example is referenced by the Cross-Definition Formulas section below (the Ratios and Cash Flow examples both consume `DP_*` lines from here).
+A parallel P&L definition that feeds off the **same** FY-to-date April 2026 GI window. This example is referenced by the Cross-Definition Formulas section below (the Ratios and Cash Flow examples both consume `DP_*` lines from here).
 
 ### 1 — Raw GI data (input)
 
-Assume the `TrialBalance` GI returns the following rows for **April 2026** (same scope as the Mini BS — Branch `MAIN`, Ledger `ACTUAL`):
+Assume the `AFS-Trial-Balance` GI returns the following **FY-to-date** figures through April 2026 (same scope as the Mini BS — Branch `MAIN`, Ledger `ACTUAL`). P&L lines read the `Movement` column (FY-to-date `Debit − Credit`):
 
-| Account | Type | PeriodDebit | PeriodCredit | PeriodMovement (Debit − Credit) |
-| ------- | ---- | ----------- | ------------ | -------------------------------- |
-| 40100   | I    | 500         | 250,500      | −250,000                         |
-| 50100   | E    | 100,100     | 100          | 100,000                          |
-| 60100   | E    | 60,000      | 0            | 60,000                           |
-| 70100   | E    | 20,000      | 0            | 20,000                           |
+| Account | Type | Debit (YTD) | Credit (YTD) | Movement (YTD) |
+| ------- | ---- | ----------- | ------------ | -------------- |
+| 40100   | I    | 500         | 250,500      | −250,000       |
+| 50100   | E    | 100,100     | 100          | 100,000        |
+| 60100   | E    | 60,000      | 0            | 60,000         |
+| 70100   | E    | 20,000      | 0            | 20,000         |
 
-> Income accounts are credit-normal — their period movement is negative at the GL level. The engine's automatic **account-type normalization** (`Type = I` → `× −1`) converts this to a positive figure before Sign Rule is applied, so REVENUE below uses `Sign Rule = ASIS`. Expense accounts (`Type = E`) are debit-normal positive — also ASIS. `Balance Type = PMOVEMENT` reads single-period `Debit − Credit` (not YTD).
+> Income accounts are credit-normal — their FY-to-date movement is negative at the GL level. The engine's automatic **account-type normalization** (`Type = I` → `× −1`) converts this to a positive figure before Sign Rule is applied, so REVENUE below uses `Sign Rule = ASIS`. Expense accounts (`Type = E`) are debit-normal positive — also ASIS. `Balance Type = MOVEMENT` reads FY-to-date `Debit − Credit`.
 
 ### 2 — Definition header
+
+Same GI and column mappings as Mini BS; only header identity fields differ:
 
 ```
 Definition Code : DEMO-PL
@@ -423,15 +440,10 @@ Prefix          : DP
 Description     : Demo Profit & Loss
 Report Type     : Profit & Loss
 Active          : ✓
-Generic Inquiry : TrialBalance
-Account Column     : Account
-Account Type Col   : Type
-Beginning Bal Col  : BeginningBalance
-Ending Bal Col     : EndingBalance
-Debit Column       : Debit
-Credit Column      : Credit
-Rounding Level     : UNITS
-Decimal Places     : 0
+Generic Inquiry : AFS-Trial-Balance
+(all 13 column mappings default to stock TrialBalance names — see Mini BS above)
+Rounding Level  : UNITS
+Decimal Places  : 0
 ```
 
 ### 3 — Line Items grid
@@ -439,36 +451,36 @@ Decimal Places     : 0
 | Sort | Line Code | Description               | Line Type  | Acct From | Acct To | Sign Rule | Balance Type | Formula              | Visible |
 | ---- | --------- | ------------------------- | ---------- | --------- | ------- | --------- | ------------ | -------------------- | ------- |
 | 5    | HDR_PL    | PROFIT & LOSS             | Heading    |           |         |           |              |                      | ✓       |
-| 10   | REVENUE   | Revenue                   | Account    | 40100     | 40100   | ASIS      | PMOVEMENT    |                      | ✓       |
-| 20   | COGS      | Cost of Goods Sold        | Account    | 50100     | 50100   | ASIS      | PMOVEMENT    |                      | ✓       |
+| 10   | REVENUE   | Revenue                   | Account    | 40100     | 40100   | ASIS      | MOVEMENT     |                      | ✓       |
+| 20   | COGS      | Cost of Goods Sold        | Account    | 50100     | 50100   | ASIS      | MOVEMENT     |                      | ✓       |
 | 30   | GP        | Gross Profit              | Calculated |           |         |           |              | `REVENUE - COGS`     | ✓       |
-| 40   | OPEX      | Operating Expenses        | Account    | 60100     | 60100   | ASIS      | PMOVEMENT    |                      | ✓       |
-| 50   | TAX       | Income Tax                | Account    | 70100     | 70100   | ASIS      | PMOVEMENT    |                      | ✓       |
+| 40   | OPEX      | Operating Expenses        | Account    | 60100     | 60100   | ASIS      | MOVEMENT     |                      | ✓       |
+| 50   | TAX       | Income Tax                | Account    | 70100     | 70100   | ASIS      | MOVEMENT     |                      | ✓       |
 | 60   | NI        | Net Income                | Calculated |           |         |           |              | `GP - OPEX - TAX`    | ✓       |
 
 ### 4 — How each row computes
 
 | Line Code | Computation (auto type-sign × ASIS)                                        | Value (CY) |
 | --------- | -------------------------------------------------------------------------- | ---------- |
-| `REVENUE` | `PMovement[40100]` × type-sign(I)=−1 × ASIS = `−250,000 × −1 × +1`         | `250,000`  |
-| `COGS`    | `PMovement[50100]` × type-sign(E)=+1 × ASIS                                | `100,000`  |
+| `REVENUE` | `Movement[40100]` × type-sign(I)=−1 × ASIS = `−250,000 × −1 × +1`          | `250,000`  |
+| `COGS`    | `Movement[50100]` × type-sign(E)=+1 × ASIS                                 | `100,000`  |
 | `GP`      | `REVENUE − COGS`                                                           | `150,000`  |
-| `OPEX`    | `PMovement[60100]` × type-sign(E)=+1 × ASIS                                | `60,000`   |
-| `TAX`     | `PMovement[70100]` × type-sign(E)=+1 × ASIS                                | `20,000`   |
+| `OPEX`    | `Movement[60100]` × type-sign(E)=+1 × ASIS                                 | `60,000`   |
+| `TAX`     | `Movement[70100]` × type-sign(E)=+1 × ASIS                                 | `20,000`   |
 | `NI`      | `GP − OPEX − TAX`                                                          | `70,000`   |
 
 ### 5 — Placeholders emitted
 
-| Placeholder              | Value (April 2026 / CY) |
-| ------------------------ | ----------------------- |
-| `{{DP_REVENUE_CY}}`      | `250,000`               |
-| `{{DP_COGS_CY}}`         | `100,000`               |
-| `{{DP_GP_CY}}`           | `150,000`               |
-| `{{DP_OPEX_CY}}`         | `60,000`                |
-| `{{DP_TAX_CY}}`          | `20,000`                |
-| `{{DP_NI_CY}}`           | `70,000`                |
+| Placeholder              | Value (April-2026 CY / FY-to-date) |
+| ------------------------ | ---------------------------------- |
+| `{{DP_REVENUE_CY}}`      | `250,000`                          |
+| `{{DP_COGS_CY}}`         | `100,000`                          |
+| `{{DP_GP_CY}}`           | `150,000`                          |
+| `{{DP_OPEX_CY}}`         | `60,000`                           |
+| `{{DP_TAX_CY}}`          | `20,000`                           |
+| `{{DP_NI_CY}}`           | `70,000`                           |
 
-Each key is also emitted with `_PM` and `_PY` suffixes computed against the March 2026 and April 2025 period movements.
+Each key is also emitted with a `_PY` suffix — same formulas evaluated against the prior-year FY-to-date dictionary.
 
 ---
 
@@ -489,33 +501,31 @@ The separator is a single underscore (the same one used in placeholder keys — 
 
 ### Resolution order
 
-Formula tokens never include a period suffix — they address a Line Code only. Global keys are of the form `PREFIX_LINECODE` (no `_CY` / `_PM` / `_PY` on the end). For each token the resolver:
+Formula tokens never include a period suffix — they address a Line Code only. Global keys are of the form `PREFIX_LINECODE` (no `_CY` / `_PY` on the end). For each token the resolver:
 
 1. Tries each known Prefix (longest first) — if the token starts with `<Prefix>_`, treat the token as already fully qualified (`PL_NI` → global key `PL_NI`).
 2. Otherwise treat as implicit — prepend the **current definition's** Prefix (`NI` inside the PL definition → `PL_NI`).
 3. If the resulting global key is missing from the dictionary → warning logged, value defaults to `0`.
 
-### Automatic CY / PM / PY evaluation
+### Automatic CY / PY evaluation
 
-Each CALCULATED line's formula is evaluated **three times** — once against the Current-Year dictionary, once against the Previous-Month dictionary, once against the Previous-Year dictionary. Same formula, three different input dictionaries:
+Each CALCULATED line's formula is evaluated **twice** — once against the Current-Year dictionary, once against the Previous-Year dictionary. Same formula, two different input dictionaries:
 
 ```csharp
 cyVal = EvaluateFormula(formula, prefix, knownPrefixes, _cyGlobal);
-pmVal = EvaluateFormula(formula, prefix, knownPrefixes, _pmGlobal);
 pyVal = EvaluateFormula(formula, prefix, knownPrefixes, _pyGlobal);
 ```
 
-That is how the three placeholder forms are produced:
+That is how the two placeholder forms are produced:
 
 | Placeholder             | Which dictionary is used |
 | ----------------------- | ------------------------ |
 | `{{PREFIX_LINE_CY}}`    | `_cyGlobal`              |
-| `{{PREFIX_LINE_PM}}`    | `_pmGlobal`              |
 | `{{PREFIX_LINE_PY}}`    | `_pyGlobal`              |
 
-Consequence: **you cannot mix periods inside a single formula.** A formula like `DB_CASH - DB_CASH_PM` does not work — `DB_CASH_PM` is not a valid global key and resolves to `0`. Whatever period the outer evaluation pass is running, every token is looked up against that same period's dictionary.
+Consequence: **you cannot mix periods inside a single formula.** A formula like `DB_CASH - DB_CASH_PY` does not work — `DB_CASH_PY` is not a valid global key and resolves to `0`. Whatever period the outer evaluation pass is running, every token is looked up against that same period's dictionary.
 
-> **Rule.** Write formulas in terms of Line Codes only (`DB_CASH`, `DP_NI`). The engine picks the right period automatically for each of the three passes. All three output placeholders (`_CY`, `_PM`, `_PY`) drop out of that for free.
+> **Rule.** Write formulas in terms of Line Codes only (`DB_CASH`, `DP_NI`). The engine picks the right dictionary automatically on each pass. Both output placeholders (`_CY` and `_PY`) drop out of that for free.
 
 ### Worked example A — Financial Ratios (consumes `DB` + `DP`)
 
@@ -534,7 +544,7 @@ This example uses the two definitions already worked through above — **Mini Ba
 | `DB_TOTAL_LIAB`                     | `88,000`        |                         |                 |
 | `DB_EQUITY`                         | `92,000`        |                         |                 |
 
-> The values shown are the April-2026 (CY) figures. The same tokens resolve to different values on the PM pass (March 2026) and the PY pass (April 2025), so the same formula produces `_CY`, `_PM`, and `_PY` placeholders automatically. See **Automatic CY / PM / PY evaluation** above.
+> The values shown are the April-2026 (CY) figures. The same tokens resolve to different values on the PY pass (April 2025), so the same formula produces `_CY` and `_PY` placeholders automatically. See **Automatic CY / PY evaluation** above.
 
 > Mini BS has no separate Fixed Assets range, so `DB_CURRENT_ASSETS` = Total Assets for this dataset. The identity `CURRENT_ASSETS = TOTAL_LIAB + EQUITY` (`180,000 = 88,000 + 92,000`) confirms it.
 
@@ -584,26 +594,26 @@ Decimal Places  : 2        ← ratios are fractional; show 2 decimals
 
 **Placeholders emitted**
 
-Each formula is evaluated three times (once per period dictionary), so every ratio line drops three placeholders into the merge dictionary:
+Each formula is evaluated twice (once per period dictionary), so every ratio line drops two placeholders into the merge dictionary:
 
-| Line Code      | `{{..._CY}}` (April 2026) | `{{..._PM}}` (March 2026) | `{{..._PY}}` (April 2025) |
-| -------------- | ------------------------- | ------------------------- | ------------------------- |
-| `DEBT_EQUITY`  | `0.96`                    | *(March BS totals)*       | *(April 2025 BS totals)*  |
-| `GROSS_MARGIN` | `0.60`                    | *(March PL totals)*       | *(April 2025 PL totals)*  |
-| `NET_MARGIN`   | `0.28`                    | ″                         | ″                         |
-| `ROA`          | `0.39`                    | ″                         | ″                         |
-| `QUICK_RATIO`  | `5.30`                    | ″                         | ″                         |
-| `CHECK_ID`     | `0.00`                    | `0.00`                    | `0.00`                    |
+| Line Code      | `{{..._CY}}` (April 2026) | `{{..._PY}}` (April 2025) |
+| -------------- | ------------------------- | ------------------------- |
+| `DEBT_EQUITY`  | `0.96`                    | *(prior-year BS totals)*  |
+| `GROSS_MARGIN` | `0.60`                    | *(prior-year PL totals)*  |
+| `NET_MARGIN`   | `0.28`                    | ″                         |
+| `ROA`          | `0.39`                    | ″                         |
+| `QUICK_RATIO`  | `5.30`                    | ″                         |
+| `CHECK_ID`     | `0.00`                    | `0.00`                    |
 
-The CY values are what the April-2026 inputs above produce. The PM and PY values are the same formulas evaluated against the March 2026 and April 2025 dictionaries — they are computed automatically, you do not author separate formulas for them.
+The CY values are what the April-2026 inputs above produce. The PY values are the same formulas evaluated against the prior-year dictionary — they are computed automatically, you do not author separate formulas for them.
 
-To make this run end-to-end: open the FR101000 record, set Current Year = `2026`, Financial Month = `April`, attach a Word template that references any of the `{{DR_*}}` / `{{DB_*}}` / `{{DP_*}}` placeholders, and link **all three** definitions (`DEMO-BS`, `DEMO-PL`, `DEMO-RATIOS`) in the Report Definitions grid. Miss any one of the three and the Ratios formulas resolve to `0` and log a warning.
+To make this run end-to-end: open the FR101000 record, set Current Year = `2026`, Financial Period = `04-2026`, attach a Word template that references any of the `{{DR_*}}` / `{{DB_*}}` / `{{DP_*}}` placeholders, and link **all three** definitions (`DEMO-BS`, `DEMO-PL`, `DEMO-RATIOS`) in the Report Definitions grid. Miss any one of the three and the Ratios formulas resolve to `0` and log a warning.
 
 ---
 
 ### Worked example B — Cash Flow statement
 
-A third definition that produces a period-movement Cash Flow by referencing BS and PL totals. The engine's automatic 3-pass evaluation means the same formulas emit `_CY`, `_PM`, and `_PY` placeholders covering April 2026 vs. March 2026 vs. April 2025 — without any per-period formula authoring.
+A third definition that produces a cash-flow view by referencing BS and PL totals. The engine's automatic 2-pass evaluation means the same formulas emit `_CY` and `_PY` placeholders covering April 2026 vs. April 2025 — without any per-period formula authoring.
 
 **Cash Flow definition header**
 
@@ -628,7 +638,7 @@ Decimal Places  : 0
 | 50   | `FREE_CF_APPROX` | Free Cash Flow (approx.)   | Calculated | `NI_INPUT - OPER_WC`                         |
 | 60   | `DEBT_COVER`   | Cash / Debt coverage ratio   | Calculated | `CASH_POS / DEBT_POS`                        |
 
-Values for each of the three periods drop out automatically from the 3-pass evaluation. For the **CY pass** (April 2026) the linked DB and DP dictionaries hold the values shown in the *Available formula tokens* table above, so:
+Values for each of the two periods drop out automatically from the 2-pass evaluation. For the **CY pass** (April 2026) the linked DB and DP dictionaries hold the values shown in the *Available formula tokens* table above, so:
 
 | Line Code          | Expression (CY)                                   | Value (CY) |
 | ------------------ | ------------------------------------------------- | ---------- |
@@ -641,23 +651,25 @@ Values for each of the three periods drop out automatically from the 3-pass eval
 
 **Placeholders emitted**
 
-| Placeholder                   | CY value   | PM / PY  |
-| ----------------------------- | ---------- | -------- |
-| `{{DC_NI_INPUT_CY}}`          | `70,000`   | auto     |
-| `{{DC_OPER_WC_CY}}`           | `99,500`   | auto     |
-| `{{DC_CASH_POS_CY}}`          | `52,500`   | auto     |
-| `{{DC_FREE_CF_APPROX_CY}}`    | `−29,500`  | auto     |
-| `{{DC_DEBT_COVER_CY}}`        | `0.88`     | auto     |
+| Placeholder                   | CY value   | PY     |
+| ----------------------------- | ---------- | ------ |
+| `{{DC_NI_INPUT_CY}}`          | `70,000`   | auto   |
+| `{{DC_OPER_WC_CY}}`           | `99,500`   | auto   |
+| `{{DC_CASH_POS_CY}}`          | `52,500`   | auto   |
+| `{{DC_FREE_CF_APPROX_CY}}`    | `−29,500`  | auto   |
+| `{{DC_DEBT_COVER_CY}}`        | `0.88`     | auto   |
 
-`_PM` and `_PY` counterparts are computed by the exact same formulas, evaluated against `_pmGlobal` and `_pyGlobal` respectively. The Word template can reference all three periods side by side — typical for a KPI dashboard showing "This month / Last month / Same month prior year" columns.
+`_PY` counterparts are computed by the exact same formulas, evaluated against `_pyGlobal`. The Word template can reference both periods side by side — typical for a comparative report showing "This year / Prior year" columns.
 
-> **If you need an explicit delta between two periods** (e.g. "cash this month minus cash last month"), compute that inside the **template**, not in the definition. A Word template macro / field can subtract `{{DC_CASH_POS_CY}}` from `{{DC_CASH_POS_PM}}` directly. A formula cannot, because tokens always resolve against the single dictionary for the pass currently running.
+> **If you need an explicit year-over-year delta** (e.g. "cash this year minus cash last year"), compute that inside the **template**, not in the definition. A Word template macro / field can subtract `{{DC_CASH_POS_PY}}` from `{{DC_CASH_POS_CY}}` directly. A formula cannot, because tokens always resolve against the single dictionary for the pass currently running.
+
+### Requirements & caveats
 
 1. **All referenced definitions must be linked on the same Financial Report record.** The Financial Report screen does not auto-add definitions; you link them explicitly in the **Report Definitions** grid. If a formula token cannot be resolved (the referenced Prefix is unknown, or the LineCode does not exist on the linked definition), the engine **logs a warning via `PXTrace`** and returns `0` for that token — the run still completes with Status `Ready to Download`, but the affected placeholders will be wrong. Always check the trace log after a run that references cross-definition tokens for the first time.
 2. **Unique prefixes.** Two definitions with the same Prefix cannot be linked to the same record — the resolver would be ambiguous. The save-time uniqueness check on FR101002 already prevents two definitions sharing a Prefix tenant-wide, so this is enforced at the source.
 3. **No circular references.** `CF_OP_CASH` may reference `PL_NI`, but `PL_NI` cannot in turn reference `CF_*`. The engine runs topological sort (Kahn's algorithm) at the start of evaluation and raises a `CircularDependencyDetected` error listing the offending Line Codes; break the cycle by restructuring formulas or by demoting a shared computation into one of the definitions.
 4. **Sort Order across definitions.** Sort Order is a pure presentation field — it never drives evaluation order. Within a single definition *and* across definitions, the engine builds a global dependency graph from all formulas / parent-child subtotals and evaluates in topological order. Write formulas in any order; the engine will compute inputs before dependents automatically.
-5. **Rounding is applied only at the final placeholder step.** The `_cyGlobal` / `_pmGlobal` / `_pyGlobal` dictionaries that feed every formula store **raw `decimal` values**. Rounding is applied only by `BuildPlaceholderMap` when formatting each value into the string that goes into the Word-merge dictionary. Consequence: a cross-definition formula like `DR_ROA = DP_NI / DB_CURRENT_ASSETS` uses the full-precision numerator and denominator from the PL and BS definitions, regardless of those definitions' Rounding settings. Rounding only affects what the template prints, never what downstream formulas consume.
+5. **Rounding is applied only at the final placeholder step.** The `_cyGlobal` / `_pyGlobal` dictionaries that feed every formula store **raw `decimal` values**. Rounding is applied only by `BuildPlaceholderMap` when formatting each value into the string that goes into the Word-merge dictionary. Consequence: a cross-definition formula like `DR_ROA = DP_NI / DB_CURRENT_ASSETS` uses the full-precision numerator and denominator from the PL and BS definitions, regardless of those definitions' Rounding settings. Rounding only affects what the template prints, never what downstream formulas consume.
 
 ---
 
