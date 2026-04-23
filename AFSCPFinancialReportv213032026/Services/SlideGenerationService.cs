@@ -23,7 +23,6 @@ namespace FinancialReport.Services
         private readonly FLRTPresentationGeneration _currentRecord;
         private readonly AuthService _authService;
         private readonly string _tenantName;
-        private readonly FileService _fileService;
 
         public SlideGenerationService(
             FLRTFinancialPresentationMaint graph,
@@ -35,7 +34,6 @@ namespace FinancialReport.Services
             _currentRecord = record      ?? throw new ArgumentNullException(nameof(record));
             _authService   = authService ?? throw new ArgumentNullException(nameof(authService));
             _tenantName    = tenantName  ?? throw new ArgumentNullException(nameof(tenantName));
-            _fileService   = new FileService(_graph);
         }
 
         /// <summary>
@@ -44,7 +42,7 @@ namespace FinancialReport.Services
         /// </summary>
         public string LastGeneratedMarkdown { get; private set; }
 
-        public Guid BuildMarkdownPreview(CancellationToken cancellationToken = default)
+        public void BuildMarkdownPreview(CancellationToken cancellationToken = default)
         {
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             try
@@ -84,7 +82,7 @@ namespace FinancialReport.Services
                     if (missingDesc.Any())
                         throw new PXException(Messages.VisibleLineItemsMissingDescriptions, string.Join(", ", missingDesc));
 
-                    PXTrace.WriteInformation($"[Slide] Periods — CY:{ctx.SelectedPeriod}, PY:{ctx.PrevYearPeriod}, PM:{ctx.PrevMonthPeriod}");
+                    PXTrace.WriteInformation($"[Slide] FY periods — CY:{ctx.CyFyStartPeriod}→{ctx.SelectedPeriod}, PY:{ctx.PyFyStartPeriod}→{ctx.PrevYearPeriod}");
 
                     results = ReportDataPipeline.FetchAndCalculate(ctx, _graph, _currentRecord, _authService, _tenantName, cancellationToken);
                     PXTrace.WriteInformation($"[Slide] GL fetch + engine: {results.Count} values in {stopwatch.ElapsedMilliseconds}ms");
@@ -147,17 +145,8 @@ namespace FinancialReport.Services
                 string markdown = markdownBuilder.Build(_currentRecord, ctx.DefinitionsWithItems, results, giDataSources);
                 LastGeneratedMarkdown = markdown;
 
-                PXTrace.WriteInformation($"[Slide] Markdown built — {markdown.Length} chars");
-
-                // ── 6. Save as .txt attachment ────────────────────────────────────
-                byte[] txtBytes = Encoding.UTF8.GetBytes(markdown);
-                string fileName = $"{_currentRecord.PresentationCD}_MarkdownPreview_{DateTime.Now:yyyyMMdd_HHmm}.txt";
-                Guid fileID = _fileService.SaveGeneratedDocument(fileName, txtBytes, _currentRecord);
-
                 stopwatch.Stop();
-                PXTrace.WriteInformation($"[Slide] Markdown preview saved with FileID {fileID} — total {stopwatch.ElapsedMilliseconds}ms");
-
-                return fileID;
+                PXTrace.WriteInformation($"[Slide] Markdown built — {markdown.Length} chars, total {stopwatch.ElapsedMilliseconds}ms");
             }
             finally
             {

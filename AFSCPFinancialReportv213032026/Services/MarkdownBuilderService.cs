@@ -60,7 +60,7 @@ namespace FinancialReport.Services
             {
                 sb.AppendLine("### Financial Report Lines");
                 sb.AppendLine();
-                sb.AppendLine($"Each metric below shows three periods for comparison: current (**{labels.Cy}**), prior month (**{labels.Pm}**), and prior year same month (**{labels.Py}**).");
+                sb.AppendLine($"Each metric below shows two fiscal-year periods for comparison: current (**{labels.Cy}**) and prior (**{labels.Py}**).");
                 sb.AppendLine();
                 AppendTBLineItems(sb, definitions, results, labels, hasAnySection: true);
             }
@@ -86,7 +86,6 @@ namespace FinancialReport.Services
         private struct PeriodLabels
         {
             public string Cy;
-            public string Pm;
             public string Py;
         }
 
@@ -96,14 +95,13 @@ namespace FinancialReport.Services
             if (month < 1 || month > 12) month = 12;
             int year = int.TryParse(currYear, out int y) ? y : DateTime.Now.Year;
 
-            int prevMonth = month == 1 ? 12 : month - 1;
-            int prevMonthYear = month == 1 ? year - 1 : year;
+            // FY model: FinancialMonth = FY start. FY end month = month - 1 (wraps Jan→Dec).
+            int fyEndMonth = month == 1 ? 12 : month - 1;
 
             return new PeriodLabels
             {
-                Cy = $"{MonthNames[month - 1]} {year}",
-                Pm = $"{MonthNames[prevMonth - 1]} {prevMonthYear}",
-                Py = $"{MonthNames[month - 1]} {year - 1}"
+                Cy = $"FY{year} ({MonthNames[fyEndMonth - 1]} {year})",
+                Py = $"FY{year - 1} ({MonthNames[fyEndMonth - 1]} {year - 1})"
             };
         }
 
@@ -198,7 +196,6 @@ namespace FinancialReport.Services
                 {
                     string keyBase = $"{defLink.Prefix}_{line.LineCode}";
                     string cyVal = GetValue(results, keyBase + "_" + Constants.CurrentYearSuffix);
-                    string pmVal = GetValue(results, keyBase + "_" + Constants.PreviousMonthSuffix);
                     string pyVal = GetValue(results, keyBase + "_" + Constants.PreviousYearSuffix);
 
                     string label = !string.IsNullOrWhiteSpace(line.Description)
@@ -210,7 +207,6 @@ namespace FinancialReport.Services
                     sb.AppendLine("| Period | Value |");
                     sb.AppendLine("|--------|-------|");
                     sb.AppendLine($"| {labels.Cy} | {cyVal} |");
-                    sb.AppendLine($"| {labels.Pm} | {pmVal} |");
                     sb.AppendLine($"| {labels.Py} | {pyVal} |");
                     sb.AppendLine();
                 }

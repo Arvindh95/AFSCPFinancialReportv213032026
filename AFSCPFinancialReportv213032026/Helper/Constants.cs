@@ -43,12 +43,6 @@ namespace FinancialReport.Helper
         public const string PreviousYearSuffix = "PY";
 
         /// <summary>
-        /// The suffix used for Previous Month placeholders (e.g., "BS_CASH_PM").
-        /// Represents the single period immediately before the selected financial month.
-        /// </summary>
-        public const string PreviousMonthSuffix = "PM";
-
-        /// <summary>
         /// Maximum number of placeholders allowed in a single template.
         /// Prevents performance issues and potential abuse.
         /// </summary>

@@ -21,17 +21,25 @@
             <px:PXTextEdit ID="edDescription" runat="server" DataField="Description" />
             <px:PXCheckBox ID="edIsActive" runat="server" DataField="IsActive" />
 
-            <%-- Row 2: Data Source --%>
-            <px:PXLayoutRule runat="server" StartRow="True" StartGroup="True" GroupCaption="Data Source" LabelsWidth="SM" ControlSize="M" />
+            <%-- Row 2: Data Source (compact: 4 cols x 4 rows, SM labels) --%>
+            <px:PXLayoutRule runat="server" StartRow="True" StartGroup="True" GroupCaption="Data Source" LabelsWidth="SM" ControlSize="SM" />
             <px:PXSelector ID="edGIName" runat="server" DataField="GIName" CommitChanges="True" AutoRefresh="True" />
+            <px:PXSelector ID="edPeriodColumn" runat="server" DataField="PeriodColumn" AutoRefresh="True" />
+            <px:PXSelector ID="edLedgerColumn" runat="server" DataField="LedgerColumn" AutoRefresh="True" />
+            <px:PXSelector ID="edMovementColumn" runat="server" DataField="MovementColumn" AutoRefresh="True" />
 
-            <px:PXLayoutRule runat="server" StartColumn="True" LabelsWidth="SM" ControlSize="M" />
+            <px:PXLayoutRule runat="server" StartColumn="True" LabelsWidth="SM" ControlSize="SM" />
             <px:PXSelector ID="edAccountColumn" runat="server" DataField="AccountColumn" AutoRefresh="True" />
             <px:PXSelector ID="edTypeColumn" runat="server" DataField="TypeColumn" AutoRefresh="True" />
-            <px:PXSelector ID="edBeginningBalColumn" runat="server" DataField="BeginningBalColumn" AutoRefresh="True" />
+            <px:PXSelector ID="edSubaccountColumn" runat="server" DataField="SubaccountColumn" AutoRefresh="True" />
+            <px:PXSelector ID="edBranchColumn" runat="server" DataField="BranchColumn" AutoRefresh="True" />
 
-            <px:PXLayoutRule runat="server" StartColumn="True" LabelsWidth="SM" ControlSize="M" />
+            <px:PXLayoutRule runat="server" StartColumn="True" LabelsWidth="SM" ControlSize="SM" />
+            <px:PXSelector ID="edBeginningBalColumn" runat="server" DataField="BeginningBalColumn" AutoRefresh="True" />
             <px:PXSelector ID="edEndingBalColumn" runat="server" DataField="EndingBalColumn" AutoRefresh="True" />
+            <px:PXSelector ID="edOrganizationColumn" runat="server" DataField="OrganizationColumn" AutoRefresh="True" />
+
+            <px:PXLayoutRule runat="server" StartColumn="True" LabelsWidth="SM" ControlSize="SM" />
             <px:PXSelector ID="edDebitColumn" runat="server" DataField="DebitColumn" AutoRefresh="True" />
             <px:PXSelector ID="edCreditColumn" runat="server" DataField="CreditColumn" AutoRefresh="True" />
 

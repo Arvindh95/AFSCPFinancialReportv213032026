@@ -245,6 +245,12 @@ BEGIN
         [EndingBalColumn]        [nvarchar](100)  NULL DEFAULT('EndingBalance'),
         [DebitColumn]            [nvarchar](100)  NULL DEFAULT('Debit'),
         [CreditColumn]           [nvarchar](100)  NULL DEFAULT('Credit'),
+        [MovementColumn]         [nvarchar](100)  NULL DEFAULT('Movement'),
+        [PeriodColumn]           [nvarchar](100)  NULL DEFAULT('FinancialPeriod'),
+        [SubaccountColumn]       [nvarchar](100)  NULL DEFAULT('Subaccount'),
+        [BranchColumn]           [nvarchar](100)  NULL DEFAULT('BranchID'),
+        [OrganizationColumn]     [nvarchar](100)  NULL DEFAULT('OrganizationID'),
+        [LedgerColumn]           [nvarchar](100)  NULL DEFAULT('LedgerID'),
         [RoundingLevel]          [nvarchar](10)   NULL DEFAULT('UNITS'),
         [DecimalPlaces]          [int]            NULL DEFAULT(0),
         [CreatedDateTime]        [datetime]       NOT NULL DEFAULT(GETDATE()),
@@ -295,6 +301,30 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[FLRTReportDefinition]') AND name = 'CreditColumn')
     BEGIN ALTER TABLE [dbo].[FLRTReportDefinition] ADD [CreditColumn] [nvarchar](100) NULL DEFAULT('Credit')
           PRINT '  + CreditColumn' END
+
+    IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[FLRTReportDefinition]') AND name = 'MovementColumn')
+    BEGIN ALTER TABLE [dbo].[FLRTReportDefinition] ADD [MovementColumn] [nvarchar](100) NULL DEFAULT('Movement')
+          PRINT '  + MovementColumn' END
+
+    IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[FLRTReportDefinition]') AND name = 'PeriodColumn')
+    BEGIN ALTER TABLE [dbo].[FLRTReportDefinition] ADD [PeriodColumn] [nvarchar](100) NULL DEFAULT('FinancialPeriod')
+          PRINT '  + PeriodColumn' END
+
+    IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[FLRTReportDefinition]') AND name = 'SubaccountColumn')
+    BEGIN ALTER TABLE [dbo].[FLRTReportDefinition] ADD [SubaccountColumn] [nvarchar](100) NULL DEFAULT('Subaccount')
+          PRINT '  + SubaccountColumn' END
+
+    IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[FLRTReportDefinition]') AND name = 'BranchColumn')
+    BEGIN ALTER TABLE [dbo].[FLRTReportDefinition] ADD [BranchColumn] [nvarchar](100) NULL DEFAULT('BranchID')
+          PRINT '  + BranchColumn' END
+
+    IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[FLRTReportDefinition]') AND name = 'OrganizationColumn')
+    BEGIN ALTER TABLE [dbo].[FLRTReportDefinition] ADD [OrganizationColumn] [nvarchar](100) NULL DEFAULT('OrganizationID')
+          PRINT '  + OrganizationColumn' END
+
+    IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[FLRTReportDefinition]') AND name = 'LedgerColumn')
+    BEGIN ALTER TABLE [dbo].[FLRTReportDefinition] ADD [LedgerColumn] [nvarchar](100) NULL DEFAULT('LedgerID')
+          PRINT '  + LedgerColumn' END
 
     IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[FLRTReportDefinition]') AND name = 'RoundingLevel')
     BEGIN ALTER TABLE [dbo].[FLRTReportDefinition] ADD [RoundingLevel] [nvarchar](10) NULL DEFAULT('UNITS')

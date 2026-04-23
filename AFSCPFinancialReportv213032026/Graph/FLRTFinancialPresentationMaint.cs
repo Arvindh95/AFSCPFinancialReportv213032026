@@ -142,14 +142,14 @@ namespace FinancialReport
                     authService.AuthenticateAndGetToken();
 
                     var slideService = new SlideGenerationService(presentationGraph, dbRecord, authService, tenantName);
-                    Guid fileID = slideService.BuildMarkdownPreview(timeoutCancellation.Token);
+                    slideService.BuildMarkdownPreview(timeoutCancellation.Token);
 
                     dbRecord.PresentationMarkdown = slideService.LastGeneratedMarkdown;
 
                     presentationGraph.PresentationRecord.Update(dbRecord);
                     presentationGraph.Actions.PressSave();
 
-                    PXTrace.WriteInformation($"[Slide] Markdown preview saved. FileID={fileID}");
+                    PXTrace.WriteInformation($"[Slide] Markdown preview saved to record ({slideService.LastGeneratedMarkdown?.Length ?? 0} chars).");
                 }
                 catch (OperationCanceledException)
                 {

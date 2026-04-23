@@ -23,7 +23,7 @@ In the top search bar type **Financial Report** and select **AFS Financial Repor
 
 > **Screen ID:** FR101000
 
-![AFS Financial Report landing screen](images/reportgen_01_landing.png)
+![AFS Financial Report landing screen](images/report_generation/reportgen_01_landing.png)
 
 The toolbar at the top carries the standard Acumatica navigation (Back, Save, Cancel, New, Delete, Copy/Paste, First/Prev/Next/Last). Directly underneath are the three **action buttons** wired on this screen:
 
@@ -62,7 +62,7 @@ The header is split into two column groups. The left group identifies the report
 
 Click the magnifier next to **Current Year** to open the selector. It shows every distinct `FinYear` on file (latest first). Double-click a row, or type the year directly into the field and press Tab.
 
-![Current Year selector — 2023 through 2027](images/reportgen_02_year_selector.png)
+![Current Year selector — 2023 through 2027](images/report_generation/reportgen_02_year_selector.png)
 
 ---
 
@@ -76,7 +76,7 @@ Click the magnifier next to **Current Year** to open the selector. It shows ever
 
 Default is `December` (month `12`) so annual Balance Sheets need no change.
 
-![Financial Month dropdown open](images/reportgen_03_month_dropdown.png)
+![Financial Month dropdown open](images/report_generation/reportgen_03_month_dropdown.png)
 
 ---
 
@@ -92,15 +92,15 @@ The right-hand column group narrows *which GL rows* the linked Report Definition
 
 > The three filters are AND-combined with any per-line filters you set inside the Report Definition (*Organization Filter*, *Branch Filter*, *Ledger Filter* on each line item). The header values act as a hard upper bound; per-line filters may further narrow, never widen.
 
-![Organization selector](images/reportgen_04_org_selector.png)
+![Organization selector](images/report_generation/reportgen_04_org_selector.png)
 
-![Branch selector](images/reportgen_05_branch_selector.png)
+![Branch selector](images/report_generation/reportgen_05_branch_selector.png)
 
-![Ledger selector](images/reportgen_06_ledger_selector.png)
+![Ledger selector](images/report_generation/reportgen_06_ledger_selector.png)
 
 Once all header fields are populated the form looks like the below. Save (`Ctrl+S`) before attaching files or adding definitions — the Report Definitions grid and the Files panel both need a saved parent record.
 
-![Header fully filled](images/reportgen_07_header_filled.png)
+![Header fully filled](images/report_generation/reportgen_07_header_filled.png)
 
 ---
 
@@ -108,11 +108,11 @@ Once all header fields are populated the form looks like the below. Save (`Ctrl+
 
 Click the **Files** button (paperclip icon, top-right). An empty Files dialog opens.
 
-![Empty Files panel](images/reportgen_08_files_panel.png)
+![Empty Files panel](images/report_generation/reportgen_08_files_panel.png)
 
 Click **Browse** (or drag-drop), pick your `.docx`, and upload. **The filename must contain the substring `FRTemplate`** — the generator scans the attached files on this record and picks the first one whose name matches. Example: `DemoTemplate_FRTemplate.docx` or `BS2024_FRTemplate.docx`.
 
-![Files panel populated with the FRTemplate docx](images/reportgen_09_files_populated.png)
+![Files panel populated with the FRTemplate docx](images/report_generation/reportgen_09_files_populated.png)
 
 The Files button badge shows the attachment count (`Files(1)`). You can upload additional supporting files — only the one matching `FRTemplate` is merged; others are ignored.
 
@@ -124,11 +124,11 @@ Switch to the **REPORT DEFINITIONS** tab below the header. This child grid is wh
 
 Click **+** on the grid toolbar to add a blank row.
 
-![Empty grid row added — Add Row action highlighted](images/reportgen_10_grid_row_added.png)
+![Empty grid row added — Add Row action highlighted](images/report_generation/reportgen_10_grid_row_added.png)
 
 With the row focused, press **F3** (or click the magnifier) in the **Definition** cell. The selector opens and lists every definition marked *Active* on FR101002, showing `Definition Code`, `Prefix`, `Description`, and `Report Type`.
 
-![Definition selector — GENERIC (GC) and MON-REP (MR)](images/reportgen_11_definition_selector.png)
+![Definition selector — GENERIC (GC) and MON-REP (MR)](images/report_generation/reportgen_11_definition_selector.png)
 
 Pick the definition you want. The **Prefix** column on the grid fills automatically from the definition record and is read-only here — it is the same prefix that appears on the placeholders emitted by that definition.
 
@@ -171,7 +171,7 @@ Returns the last successfully generated `.docx` attached to this record. Disable
 
 Clears a stuck or failed run so the record can be re-queued. The button opens a confirmation dialog:
 
-![Reset Status confirmation dialog](images/reportgen_17_reset_dialog.png)
+![Reset Status confirmation dialog](images/report_generation/reportgen_17_reset_dialog.png)
 
 - **Yes** — Status moves to `Pending` (`File not Generated`). The previously generated `.docx`, if any, is retained on the record until the next successful run overwrites it.
 - **No** — Status is unchanged.
@@ -208,7 +208,7 @@ A complete walkthrough of a typical run. Input artefacts: a Word template with B
 
 Open the record in edit mode. Header looks like the below:
 
-![Loaded record — BS Annual Report 2024](images/reportgen_13_record_loaded.png)
+![Loaded record — BS Annual Report 2024](images/report_generation/reportgen_13_record_loaded.png)
 
 | Field            | Value                           |
 | ---------------- | ------------------------------- |
@@ -225,7 +225,7 @@ Open the record in edit mode. Header looks like the below:
 
 In the **Report Definitions** grid, add a row and pick **GENERIC** (Prefix `GC`):
 
-![GENERIC definition linked in grid](images/reportgen_14_definition_linked.png)
+![GENERIC definition linked in grid](images/report_generation/reportgen_14_definition_linked.png)
 
 ### 3 — Attach the template
 
@@ -235,7 +235,7 @@ Open the Files panel and upload `BS2024_FRTemplate.docx` (or similarly named fil
 
 Click **Generate Report**. Status flips to `In Progress`. Within a minute or two (depending on GL volume) Status lands on `Ready to Download`:
 
-![Ready to Download — AFS-SalesDemo-Test example with 2 linked definitions](images/reportgen_15_ready_to_download.png)
+![Ready to Download — AFS-SalesDemo-Test example with 2 linked definitions](images/report_generation/reportgen_15_ready_to_download.png)
 
 Click **Download Report** to pull the merged `.docx`. Every `{{GC_*_CY}}`, `{{GC_*_PM}}`, `{{GC_*_PY}}` placeholder in the template is now replaced with its calculated figure, rounded per the definition's Rounding Level / Decimal Places settings.
 
@@ -245,7 +245,7 @@ Click **Download Report** to pull the merged `.docx`. Every `{{GC_*_CY}}`, `{{GC
 
 The example below shows a record that threw during generation.
 
-![Failed record — AFS-SalesDemo-Test December 2025](images/reportgen_16_failed_record.png)
+![Failed record — AFS-SalesDemo-Test December 2025](images/report_generation/reportgen_16_failed_record.png)
 
 To recover:
 
@@ -260,7 +260,7 @@ To recover:
 
 The companion list screen **AFS-Financial-Report (FR401000)** shows every record on the system at a glance, grouped by status column. Click any `Report ID` link to jump to the record on FR101000.
 
-![FR401000 records list — all four lifecycle states visible](images/reportgen_12_records_list.png)
+![FR401000 records list — all four lifecycle states visible](images/report_generation/reportgen_12_records_list.png)
 
 The column set mirrors the FR101000 header: *Template Name*, *Description*, *Current Year*, *Financial Month*, *Status*, *Organization*, *Branch*. Use the standard Acumatica toolbar filters and column sort to narrow down when running many reports per period.
 

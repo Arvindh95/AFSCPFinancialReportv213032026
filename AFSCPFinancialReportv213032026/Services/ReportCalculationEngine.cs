@@ -36,7 +36,6 @@ namespace FinancialReport.Services
         // Global dictionaries used during CalculateAll — keyed by PREFIX_LINECODE (uppercase)
         private readonly Dictionary<string, decimal> _cyGlobal = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, decimal> _pyGlobal = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
-        private readonly Dictionary<string, decimal> _pmGlobal = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
 
         // Compiled once at class load — reused across all formula evaluations
         private static readonly Regex FormulaTokenRegex = new Regex(
@@ -110,22 +109,14 @@ namespace FinancialReport.Services
         /// When null, falls back to pyData.BeginningBalance (legacy behaviour).
         /// </param>
         /// <param name="cyCumulativeData">
-        /// Year-to-date range data for CY (e.g. Jan–Dec of current year).
-        /// Used for BalanceType=Debit/Credit/Movement so the full-year totals are used,
-        /// not just the single year-end period's movement values.
+        /// Full-FY range data for CY. Used for BalanceType=Debit/Credit/Movement.
         /// </param>
         /// <param name="pyCumulativeData">
-        /// Year-to-date range data for PY (e.g. Jan–Dec of prior year).
-        /// Used for BalanceType=Debit/Credit/Movement on PY lines.
-        /// </param>
-        /// <param name="pmData">
-        /// Single-period data for the month immediately before the selected financial month.
-        /// Produces PREFIX_LINECODE_PM placeholder keys for month-over-month comparisons.
-        /// All balance types use this single period (no cumulative for PM).
+        /// Full-FY range data for PY. Used for BalanceType=Debit/Credit/Movement on PY lines.
         /// </param>
         /// <returns>
-        /// Unified placeholder dictionary keyed as PREFIX_LINECODE_CY / PREFIX_LINECODE_PY / PREFIX_LINECODE_PM.
-        /// E.g. "BS_TOTAL_ASSETS_CY", "PL_NET_INCOME_PY", "KL_CASH_PM"
+        /// Unified placeholder dictionary keyed as PREFIX_LINECODE_CY / PREFIX_LINECODE_PY.
+        /// E.g. "BS_TOTAL_ASSETS_CY", "PL_NET_INCOME_PY"
         /// </returns>
         public Dictionary<string, string> CalculateAll(
             IEnumerable<DefinitionLink> definitionLinks,
@@ -134,12 +125,10 @@ namespace FinancialReport.Services
             FinancialApiData cyOpeningData = null,
             FinancialApiData pyOpeningData = null,
             FinancialApiData cyCumulativeData = null,
-            FinancialApiData pyCumulativeData = null,
-            FinancialApiData pmData = null)
+            FinancialApiData pyCumulativeData = null)
         {
             _cyGlobal.Clear();
             _pyGlobal.Clear();
-            _pmGlobal.Clear();
 
             var linkList = definitionLinks?.ToList();
             if (linkList == null || !linkList.Any())
@@ -177,33 +166,27 @@ namespace FinancialReport.Services
 
                 decimal cyVal = 0m;
                 decimal pyVal = 0m;
-                decimal pmVal = 0m;
 
                 switch (node.Line.LineType)
                 {
                     case FLRTReportLineItem.LineItemType.Account:
                         cyVal = CalculateAccountLine(node.Line, cyData, cyOpeningData, cyCumulativeData);
                         pyVal = CalculateAccountLine(node.Line, pyData, pyOpeningData, pyCumulativeData);
-                        // PM: single-period previous month — no opening data, no cumulative
-                        pmVal = CalculateAccountLine(node.Line, pmData);
                         break;
 
                     case FLRTReportLineItem.LineItemType.Subtotal:
                         cyVal = CalculateSubtotal(node.Line.LineCode, node.DefinitionID, _cyGlobal, childrenByParent);
                         pyVal = CalculateSubtotal(node.Line.LineCode, node.DefinitionID, _pyGlobal, childrenByParent);
-                        pmVal = CalculateSubtotal(node.Line.LineCode, node.DefinitionID, _pmGlobal, childrenByParent);
                         break;
 
                     case FLRTReportLineItem.LineItemType.Calculated:
                         cyVal = EvaluateFormula(node.Line.Formula, node.Prefix, knownPrefixes, _cyGlobal);
                         pyVal = EvaluateFormula(node.Line.Formula, node.Prefix, knownPrefixes, _pyGlobal);
-                        pmVal = EvaluateFormula(node.Line.Formula, node.Prefix, knownPrefixes, _pmGlobal);
                         break;
                 }
 
                 _cyGlobal[node.GlobalKey] = cyVal;
                 _pyGlobal[node.GlobalKey] = pyVal;
-                _pmGlobal[node.GlobalKey] = pmVal;
             }
 
             return BuildPlaceholderMap(allNodes);
@@ -704,10 +687,6 @@ namespace FinancialReport.Services
                 case FLRTReportLineItem.BalanceTypeValue.Debit:         return data.Debit;
                 case FLRTReportLineItem.BalanceTypeValue.Credit:        return data.Credit;
                 case FLRTReportLineItem.BalanceTypeValue.Movement:      return data.Debit - data.Credit;
-                // Period types: read the same fields but always from single-period data (no cumulative)
-                case FLRTReportLineItem.BalanceTypeValue.PeriodDebit:    return data.Debit;
-                case FLRTReportLineItem.BalanceTypeValue.PeriodCredit:   return data.Credit;
-                case FLRTReportLineItem.BalanceTypeValue.PeriodMovement: return data.Debit - data.Credit;
                 case FLRTReportLineItem.BalanceTypeValue.Ending:
                 default:
                     return data.EndingBalance;
@@ -941,23 +920,19 @@ namespace FinancialReport.Services
 
                 string cyKey = $"{node.Prefix}_{node.Line.LineCode}_{Constants.CurrentYearSuffix}";
                 string pyKey = $"{node.Prefix}_{node.Line.LineCode}_{Constants.PreviousYearSuffix}";
-                string pmKey = $"{node.Prefix}_{node.Line.LineCode}_{Constants.PreviousMonthSuffix}";
 
                 if (node.Line.LineType == FLRTReportLineItem.LineItemType.Heading || node.Line.IsVisible == false)
                 {
                     map[cyKey] = string.Empty;
                     map[pyKey] = string.Empty;
-                    map[pmKey] = string.Empty;
                     continue;
                 }
 
                 decimal cyVal = _cyGlobal.TryGetValue(node.GlobalKey, out decimal cy) ? cy : 0m;
                 decimal pyVal = _pyGlobal.TryGetValue(node.GlobalKey, out decimal py) ? py : 0m;
-                decimal pmVal = _pmGlobal.TryGetValue(node.GlobalKey, out decimal pm) ? pm : 0m;
 
                 map[cyKey] = FormatFinancialValue(cyVal, node.Rounding);
                 map[pyKey] = FormatFinancialValue(pyVal, node.Rounding);
-                map[pmKey] = FormatFinancialValue(pmVal, node.Rounding);
             }
 
             return map;
