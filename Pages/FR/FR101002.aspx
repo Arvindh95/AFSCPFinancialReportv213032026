@@ -5,10 +5,6 @@
     <px:PXDataSource ID="ds" runat="server" Visible="True" Width="100%"
         TypeName="FinancialReport.FLRTReportDefinitionMaint"
         PrimaryView="ReportDefinition">
-        <CallbackCommands>
-            <px:PXDSCallbackCommand Name="copyDefinition" CommitChanges="True" />
-            <px:PXDSCallbackCommand Name="detectColumns" CommitChanges="True" />
-        </CallbackCommands>
     </px:PXDataSource>
 </asp:Content>
 
@@ -101,15 +97,5 @@
             </px:PXGridLevel>
         </Levels>
         <AutoSize Container="Window" Enabled="True" MinHeight="200" />
-        <ActionBar>
-            <CustomItems>
-                <px:PXToolBarButton Text="Copy Definition" Key="copyDefinition">
-                    <AutoCallBack Command="copyDefinition" Target="ds" />
-                </px:PXToolBarButton>
-                <px:PXToolBarButton Text="Detect Columns" Key="detectColumns">
-                    <AutoCallBack Command="detectColumns" Target="ds" />
-                </px:PXToolBarButton>
-            </CustomItems>
-        </ActionBar>
     </px:PXGrid>
 </asp:Content>

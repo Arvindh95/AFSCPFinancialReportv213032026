@@ -136,44 +136,7 @@ namespace FinancialReport.Services
         }
 
         // --------------------------------------------------------
-        // 2) FetchJanuaryBeginningBalance
-        // --------------------------------------------------------
-        public FinancialApiData FetchJanuaryBeginningBalance(string branch, string organization, string ledger, string prevYear, CancellationToken cancellationToken = default)
-        {
-            string januaryPeriod = "01" + prevYear;
-            string accessToken = _authService.AuthenticateAndGetToken();
-            string dimensionFilter = BuildDimensionFilter(branch, organization);
-            string baseFilter = $"FinancialPeriod eq '{januaryPeriod}' and {dimensionFilter}";
-
-            var apiData = new FinancialApiData();
-
-            Action<JToken> rowConsumer = (item) =>
-            {
-                string accountId = item[_columnMapping.AccountColumn]?.ToString();
-                decimal beginningBalance = item[_columnMapping.BeginningBalCol]?.ToObject<decimal>() ?? 0;
-                if (string.IsNullOrEmpty(accountId)) return;
-
-                if (!apiData.AccountData.TryGetValue(accountId!, out var janEntry))
-                {
-                    janEntry = new FinancialPeriodData();
-                    apiData.AccountData[accountId!] = janEntry;
-                }
-                janEntry.BeginningBalance += beginningBalance;
-                janEntry.EndingBalance += beginningBalance;
-            };
-
-            Action resetConsumer = () => { apiData = new FinancialApiData(); };
-
-            int count = ExecuteFetchStreamWithFallbackAsync(_httpClient, baseFilter, ledger, accessToken, rowConsumer, resetConsumer, cancellationToken).Result;
-
-            if (count < 0)
-                throw new PXException(Messages.FailedToFetchOData);
-
-            return apiData;
-        }
-
-        // --------------------------------------------------------
-        // 3) FetchRangeApiData
+        // 2) FetchRangeApiData
         // --------------------------------------------------------
         public FinancialApiData FetchRangeApiData(string branch, string organization, string ledger, string fromPeriod, string toPeriod, CancellationToken cancellationToken = default)
         {
@@ -216,7 +179,7 @@ namespace FinancialReport.Services
         }
 
         // --------------------------------------------------------
-        // 4) FetchCompositeKeyData
+        // 3) FetchCompositeKeyData
         // --------------------------------------------------------
         public FinancialApiData FetchCompositeKeyData(string branch, string organization, string ledger, string period, CancellationToken cancellationToken = default)
         {
@@ -265,7 +228,7 @@ namespace FinancialReport.Services
         }
 
         // --------------------------------------------------------
-        // 5) FetchEndingBalance
+        // 4) FetchEndingBalance
         // --------------------------------------------------------
         public decimal FetchEndingBalance(string period, string branch, string organization, string ledger, string account, string subaccount, CancellationToken cancellationToken = default)
         {

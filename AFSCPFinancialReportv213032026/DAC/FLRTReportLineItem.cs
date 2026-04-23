@@ -139,8 +139,8 @@ namespace FinancialReport
         [PXDefault(BalanceTypeValue.Ending)]
         [PXUIField(DisplayName = "Balance Type")]
         [PXStringList(
-            new string[] { BalanceTypeValue.Ending, BalanceTypeValue.Beginning, BalanceTypeValue.JanuaryBeginning, BalanceTypeValue.Debit, BalanceTypeValue.Credit, BalanceTypeValue.Movement, BalanceTypeValue.PeriodDebit, BalanceTypeValue.PeriodCredit, BalanceTypeValue.PeriodMovement },
-            new string[] { "Ending Balance", "Beginning Balance", "January Beginning Balance", "Debit (YTD)", "Credit (YTD)", "Movement (YTD)", "Period Debit", "Period Credit", "Period Movement" }
+            new string[] { BalanceTypeValue.Ending, BalanceTypeValue.Beginning, BalanceTypeValue.Debit, BalanceTypeValue.Credit, BalanceTypeValue.Movement, BalanceTypeValue.PeriodDebit, BalanceTypeValue.PeriodCredit, BalanceTypeValue.PeriodMovement },
+            new string[] { "Ending Balance", "Beginning Balance", "Debit (YTD)", "Credit (YTD)", "Movement (YTD)", "Period Debit", "Period Credit", "Period Movement" }
         )]
         public virtual string BalanceType { get; set; }
         public abstract class balanceType : PX.Data.BQL.BqlString.Field<balanceType> { }
@@ -303,11 +303,6 @@ namespace FinancialReport
         {
             public const string Ending            = "ENDING";
             public const string Beginning         = "BEGINNING";
-            /// <summary>
-            /// Explicitly uses the BeginningBalance of period 01-{Year} (January).
-            /// Equivalent to Beginning for December fiscal-year-end; differs for other month-ends.
-            /// </summary>
-            public const string JanuaryBeginning  = "JANBEGINNING";
             /// <summary>Year-to-date cumulative debit (fiscal start → selected month).</summary>
             public const string Debit             = "DEBIT";
             /// <summary>Year-to-date cumulative credit (fiscal start → selected month).</summary>

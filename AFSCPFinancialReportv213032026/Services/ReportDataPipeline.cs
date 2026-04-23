@@ -143,7 +143,7 @@ namespace FinancialReport.Services
 
         /// <summary>
         /// Full pipeline for slide/markdown generation: builds context, fetches GL data, runs the engine.
-        /// Always fetches CY, PY, Prior, PM, JanCY, JanPY (no conditional optimisation needed for slides).
+        /// Always fetches CY, PY, Prior, PM (no conditional optimisation needed for slides).
         /// Used by SlideGenerationService only.
         /// </summary>
         public static Dictionary<string, string> FetchAndCalculate(
@@ -162,21 +162,17 @@ namespace FinancialReport.Services
             var taskPY    = Task.Run(() => dataService.FetchAllApiData(record.Branch, record.Organization, record.Ledger, ctx.PrevYearPeriod,      false, cancellationToken), cancellationToken);
             var taskPrior = Task.Run(() => dataService.FetchAllApiData(record.Branch, record.Organization, record.Ledger, ctx.PrevYearPriorPeriod, false, cancellationToken), cancellationToken);
             var taskPM    = Task.Run(() => dataService.FetchAllApiData(record.Branch, record.Organization, record.Ledger, ctx.PrevMonthPeriod,     false, cancellationToken), cancellationToken);
-            var taskJanCY = Task.Run(() => dataService.FetchJanuaryBeginningBalance(record.Branch, record.Organization, record.Ledger, ctx.CurrYear, cancellationToken), cancellationToken);
-            var taskJanPY = Task.Run(() => dataService.FetchJanuaryBeginningBalance(record.Branch, record.Organization, record.Ledger, ctx.PrevYear, cancellationToken), cancellationToken);
 
-            Task.WhenAll(taskCY, taskPY, taskPrior, taskPM, taskJanCY, taskJanPY).Wait(cancellationToken);
+            Task.WhenAll(taskCY, taskPY, taskPrior, taskPM).Wait(cancellationToken);
 
             var engine = new ReportCalculationEngine(graph);
             return engine.CalculateAll(
                 ctx.DefinitionLinks,
                 taskCY.Result,
                 taskPY.Result,
-                cyOpeningData:    taskPY.Result,
-                pyOpeningData:    taskPrior.Result,
-                cyJanOpeningData: taskJanCY.Result,
-                pyJanOpeningData: taskJanPY.Result,
-                pmData:           taskPM.Result);
+                cyOpeningData: taskPY.Result,
+                pyOpeningData: taskPrior.Result,
+                pmData:        taskPM.Result);
         }
 
         // ── Presentation Generation overloads ─────────────────────────────────────
@@ -282,21 +278,17 @@ namespace FinancialReport.Services
             var taskPY    = Task.Run(() => dataService.FetchAllApiData(record.Branch, record.Organization, record.Ledger, ctx.PrevYearPeriod,      false, cancellationToken), cancellationToken);
             var taskPrior = Task.Run(() => dataService.FetchAllApiData(record.Branch, record.Organization, record.Ledger, ctx.PrevYearPriorPeriod, false, cancellationToken), cancellationToken);
             var taskPM    = Task.Run(() => dataService.FetchAllApiData(record.Branch, record.Organization, record.Ledger, ctx.PrevMonthPeriod,     false, cancellationToken), cancellationToken);
-            var taskJanCY = Task.Run(() => dataService.FetchJanuaryBeginningBalance(record.Branch, record.Organization, record.Ledger, ctx.CurrYear, cancellationToken), cancellationToken);
-            var taskJanPY = Task.Run(() => dataService.FetchJanuaryBeginningBalance(record.Branch, record.Organization, record.Ledger, ctx.PrevYear, cancellationToken), cancellationToken);
 
-            Task.WhenAll(taskCY, taskPY, taskPrior, taskPM, taskJanCY, taskJanPY).Wait(cancellationToken);
+            Task.WhenAll(taskCY, taskPY, taskPrior, taskPM).Wait(cancellationToken);
 
             var engine = new ReportCalculationEngine(graph);
             return engine.CalculateAll(
                 ctx.DefinitionLinks,
                 taskCY.Result,
                 taskPY.Result,
-                cyOpeningData:    taskPY.Result,
-                pyOpeningData:    taskPrior.Result,
-                cyJanOpeningData: taskJanCY.Result,
-                pyJanOpeningData: taskJanPY.Result,
-                pmData:           taskPM.Result);
+                cyOpeningData: taskPY.Result,
+                pyOpeningData: taskPrior.Result,
+                pmData:        taskPM.Result);
         }
     }
 }

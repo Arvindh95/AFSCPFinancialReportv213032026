@@ -109,14 +109,6 @@ namespace FinancialReport.Services
         /// for PY lines with BalanceType=Beginning.  Pass prevYearPriorData here.
         /// When null, falls back to pyData.BeginningBalance (legacy behaviour).
         /// </param>
-        /// <param name="cyJanOpeningData">
-        /// GL data fetched from period 01-{currYear} via FetchJanuaryBeginningBalance.
-        /// Used for BalanceType=JanuaryBeginning on CY lines (.BeginningBalance per account).
-        /// </param>
-        /// <param name="pyJanOpeningData">
-        /// GL data fetched from period 01-{prevYear} via FetchJanuaryBeginningBalance.
-        /// Used for BalanceType=JanuaryBeginning on PY lines (.BeginningBalance per account).
-        /// </param>
         /// <param name="cyCumulativeData">
         /// Year-to-date range data for CY (e.g. Jan–Dec of current year).
         /// Used for BalanceType=Debit/Credit/Movement so the full-year totals are used,
@@ -141,8 +133,6 @@ namespace FinancialReport.Services
             FinancialApiData pyData,
             FinancialApiData cyOpeningData = null,
             FinancialApiData pyOpeningData = null,
-            FinancialApiData cyJanOpeningData = null,
-            FinancialApiData pyJanOpeningData = null,
             FinancialApiData cyCumulativeData = null,
             FinancialApiData pyCumulativeData = null,
             FinancialApiData pmData = null)
@@ -192,8 +182,8 @@ namespace FinancialReport.Services
                 switch (node.Line.LineType)
                 {
                     case FLRTReportLineItem.LineItemType.Account:
-                        cyVal = CalculateAccountLine(node.Line, cyData, cyOpeningData, cyJanOpeningData, cyCumulativeData);
-                        pyVal = CalculateAccountLine(node.Line, pyData, pyOpeningData, pyJanOpeningData, pyCumulativeData);
+                        cyVal = CalculateAccountLine(node.Line, cyData, cyOpeningData, cyCumulativeData);
+                        pyVal = CalculateAccountLine(node.Line, pyData, pyOpeningData, pyCumulativeData);
                         // PM: single-period previous month — no opening data, no cumulative
                         pmVal = CalculateAccountLine(node.Line, pmData);
                         break;
@@ -518,7 +508,7 @@ namespace FinancialReport.Services
         // ACCOUNT LINE CALCULATION
         // ─────────────────────────────────────────────────────────────────
 
-        private decimal CalculateAccountLine(FLRTReportLineItem line, FinancialApiData data, FinancialApiData openingData = null, FinancialApiData janOpeningData = null, FinancialApiData cumulativeData = null)
+        private decimal CalculateAccountLine(FLRTReportLineItem line, FinancialApiData data, FinancialApiData openingData = null, FinancialApiData cumulativeData = null)
         {
             if (data == null) return 0m;
             if (string.IsNullOrWhiteSpace(line.AccountFrom) || string.IsNullOrWhiteSpace(line.AccountTo))
@@ -530,10 +520,9 @@ namespace FinancialReport.Services
                           || !string.IsNullOrWhiteSpace(line.LedgerFilter);
 
             if (hasFilter && data.DetailRows != null && data.DetailRows.Count > 0)
-                return CalculateAccountLineFromDetail(line, data.DetailRows, openingData?.DetailRows, janOpeningData?.DetailRows, cumulativeData?.DetailRows);
+                return CalculateAccountLineFromDetail(line, data.DetailRows, openingData?.DetailRows, cumulativeData?.DetailRows);
 
-            bool isBeginning        = string.Equals(line.BalanceType, FLRTReportLineItem.BalanceTypeValue.Beginning,        StringComparison.OrdinalIgnoreCase);
-            bool isJanuaryBeginning = string.Equals(line.BalanceType, FLRTReportLineItem.BalanceTypeValue.JanuaryBeginning, StringComparison.OrdinalIgnoreCase);
+            bool isBeginning = string.Equals(line.BalanceType, FLRTReportLineItem.BalanceTypeValue.Beginning, StringComparison.OrdinalIgnoreCase);
             bool isDebit    = string.Equals(line.BalanceType, FLRTReportLineItem.BalanceTypeValue.Debit,    StringComparison.OrdinalIgnoreCase);
             bool isCredit   = string.Equals(line.BalanceType, FLRTReportLineItem.BalanceTypeValue.Credit,   StringComparison.OrdinalIgnoreCase);
             bool isMovement = string.Equals(line.BalanceType, FLRTReportLineItem.BalanceTypeValue.Movement, StringComparison.OrdinalIgnoreCase);
@@ -567,14 +556,6 @@ namespace FinancialReport.Services
                     // Works for any fiscal year end month.
                     rawValue = openingData.AccountData.TryGetValue(accountCode, out FinancialPeriodData openingPeriod)
                         ? openingPeriod.EndingBalance
-                        : 0m;
-                }
-                else if (isJanuaryBeginning && janOpeningData?.AccountData != null)
-                {
-                    // Opening balance = BeginningBalance of period 01-{Year}.
-                    // Best suited for calendar-year (Jan–Dec) fiscal periods.
-                    rawValue = janOpeningData.AccountData.TryGetValue(accountCode, out FinancialPeriodData janPeriod)
-                        ? janPeriod.BeginningBalance
                         : 0m;
                 }
                 else
@@ -614,13 +595,12 @@ namespace FinancialReport.Services
             return index;
         }
 
-        private decimal CalculateAccountLineFromDetail(FLRTReportLineItem line, List<FinancialPeriodData> detailRows, List<FinancialPeriodData> openingDetailRows = null, List<FinancialPeriodData> janOpeningDetailRows = null, List<FinancialPeriodData> cumulativeDetailRows = null)
+        private decimal CalculateAccountLineFromDetail(FLRTReportLineItem line, List<FinancialPeriodData> detailRows, List<FinancialPeriodData> openingDetailRows = null, List<FinancialPeriodData> cumulativeDetailRows = null)
         {
             decimal total = 0m;
             int matched = 0;
 
-            bool isBeginning        = string.Equals(line.BalanceType, FLRTReportLineItem.BalanceTypeValue.Beginning,        StringComparison.OrdinalIgnoreCase);
-            bool isJanuaryBeginning = string.Equals(line.BalanceType, FLRTReportLineItem.BalanceTypeValue.JanuaryBeginning, StringComparison.OrdinalIgnoreCase);
+            bool isBeginning = string.Equals(line.BalanceType, FLRTReportLineItem.BalanceTypeValue.Beginning, StringComparison.OrdinalIgnoreCase);
             bool isDebit    = string.Equals(line.BalanceType, FLRTReportLineItem.BalanceTypeValue.Debit,    StringComparison.OrdinalIgnoreCase);
             bool isCredit   = string.Equals(line.BalanceType, FLRTReportLineItem.BalanceTypeValue.Credit,   StringComparison.OrdinalIgnoreCase);
             bool isMovement = string.Equals(line.BalanceType, FLRTReportLineItem.BalanceTypeValue.Movement, StringComparison.OrdinalIgnoreCase);
@@ -632,10 +612,8 @@ namespace FinancialReport.Services
 
             if (sourceRows == null || sourceRows.Count == 0) return 0m;
 
-            // Pre-build O(1) indexes for opening/jan lookups — replaces O(N) FirstOrDefault per row.
-            // Built once here; used inside the loop below.
-            var openingIndex    = isBeginning        ? BuildDetailIndex(openingDetailRows)    : null;
-            var janOpeningIndex = isJanuaryBeginning ? BuildDetailIndex(janOpeningDetailRows) : null;
+            // Pre-build O(1) index for opening lookup — replaces O(N) FirstOrDefault per row.
+            var openingIndex = isBeginning ? BuildDetailIndex(openingDetailRows) : null;
 
             foreach (var row in sourceRows)
             {
@@ -667,12 +645,6 @@ namespace FinancialReport.Services
                     // Opening balance = EndingBalance of the prior fiscal-year-end period for the same dimension combination.
                     string k = DetailKey(row.Account, row.Subaccount, row.BranchID, row.OrganizationID, row.Ledger);
                     rawValue = openingIndex.TryGetValue(k, out FinancialPeriodData openingRow) ? openingRow.EndingBalance : 0m;
-                }
-                else if (isJanuaryBeginning && janOpeningIndex != null)
-                {
-                    // Opening balance = BeginningBalance of period 01-{Year} for the same dimension combination.
-                    string k = DetailKey(row.Account, row.Subaccount, row.BranchID, row.OrganizationID, row.Ledger);
-                    rawValue = janOpeningIndex.TryGetValue(k, out FinancialPeriodData janRow) ? janRow.BeginningBalance : 0m;
                 }
                 else
                 {

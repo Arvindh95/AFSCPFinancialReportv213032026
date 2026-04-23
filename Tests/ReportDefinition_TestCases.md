@@ -403,23 +403,7 @@ Each test case follows this structure:
 
 ---
 
-### B-11: Balance Type = January Beginning Balance
-**Objective:** Verify JanuaryBeginning uses BeginningBalance of period 01-{Year}.
-
-**Steps:**
-1. Add ACCOUNT line, Balance Type = `January Beginning Balance`
-2. Run for year 2025
-
-**Expected Result:**
-- Value = BeginningBalance from period `012025`
-- Different from Beginning Balance result for companies with non-Dec fiscal year-end
-
-**Pass/Fail:** ___
-**Notes:** ___
-
----
-
-### B-12: Balance Type = Debit (YTD)
+### B-11: Balance Type = Debit (YTD)
 **Objective:** Verify YTD cumulative debit is used (not single period debit).
 
 **Steps:**
@@ -435,7 +419,7 @@ Each test case follows this structure:
 
 ---
 
-### B-13: Balance Type = Credit (YTD)
+### B-12: Balance Type = Credit (YTD)
 **Objective:** Verify YTD cumulative credit.
 
 **Steps:**
@@ -449,7 +433,7 @@ Each test case follows this structure:
 
 ---
 
-### B-14: Balance Type = Movement (YTD)
+### B-13: Balance Type = Movement (YTD)
 **Objective:** Verify YTD net movement = Debit YTD − Credit YTD.
 
 **Steps:**
@@ -464,7 +448,7 @@ Each test case follows this structure:
 
 ---
 
-### B-15: Balance Type = Period Debit
+### B-14: Balance Type = Period Debit
 **Objective:** Verify single-period debit (not cumulative).
 
 **Steps:**
@@ -480,7 +464,7 @@ Each test case follows this structure:
 
 ---
 
-### B-16: Balance Type = Period Credit
+### B-15: Balance Type = Period Credit
 **Objective:** Verify single-period credit.
 
 **Steps:**
@@ -494,7 +478,7 @@ Each test case follows this structure:
 
 ---
 
-### B-17: Balance Type = Period Movement
+### B-16: Balance Type = Period Movement
 **Objective:** Verify single-period net movement.
 
 **Steps:**
@@ -508,7 +492,7 @@ Each test case follows this structure:
 
 ---
 
-### B-18: Subaccount Filter — Matching Value
+### B-17: Subaccount Filter — Matching Value
 **Objective:** Verify SubaccountFilter restricts rows to exact subaccount match.
 
 **Prerequisites:** Account range has rows with multiple subaccounts (e.g. `000`, `001`, `002`).
@@ -527,7 +511,7 @@ Each test case follows this structure:
 
 ---
 
-### B-19: Subaccount Filter — No Match
+### B-18: Subaccount Filter — No Match
 **Objective:** Verify zero result when subaccount filter matches nothing.
 
 **Steps:**
@@ -544,7 +528,7 @@ Each test case follows this structure:
 
 ---
 
-### B-20: Branch Filter — Valid Branch
+### B-19: Branch Filter — Valid Branch
 **Objective:** Verify BranchFilter restricts to specific branch rows.
 
 **Prerequisites:** GL data exists for branches `HQ` and `BRANCH1`.
@@ -564,7 +548,7 @@ Each test case follows this structure:
 
 ---
 
-### B-21: Branch Filter — Non-Existent Branch
+### B-20: Branch Filter — Non-Existent Branch
 **Objective:** Verify graceful zero result for invalid branch.
 
 **Steps:**
@@ -580,7 +564,7 @@ Each test case follows this structure:
 
 ---
 
-### B-22: Organization Filter
+### B-21: Organization Filter
 **Objective:** Verify OrganizationFilter restricts to specific organization.
 
 **Steps:**
@@ -597,7 +581,7 @@ Each test case follows this structure:
 
 ---
 
-### B-23: Ledger Filter = ACTUAL
+### B-22: Ledger Filter = ACTUAL
 **Objective:** Verify LedgerFilter excludes non-ACTUAL ledgers.
 
 **Prerequisites:** Multiple ledgers exist (ACTUAL, BUDGET, STAT).
@@ -616,7 +600,7 @@ Each test case follows this structure:
 
 ---
 
-### B-24: All Dimension Filters Combined
+### B-23: All Dimension Filters Combined
 **Objective:** Verify all four filters work together (AND logic).
 
 **Steps:**
@@ -632,7 +616,7 @@ Each test case follows this structure:
 
 ---
 
-### B-25: Dimension Filters Disabled for Non-ACCOUNT Types
+### B-24: Dimension Filters Disabled for Non-ACCOUNT Types
 **Objective:** Verify dimension filter fields are disabled for Subtotal/Calculated/Heading.
 
 **Steps:**
@@ -650,7 +634,7 @@ Each test case follows this structure:
 
 ---
 
-### B-26: Dimension Filters Auto-Cleared on Type Change
+### B-25: Dimension Filters Auto-Cleared on Type Change
 **Objective:** Verify dimension filter values are cleared when switching away from ACCOUNT.
 
 **Steps:**
@@ -667,7 +651,7 @@ Each test case follows this structure:
 
 ---
 
-### B-27: Account Range — No Matching Accounts
+### B-26: Account Range — No Matching Accounts
 **Objective:** Verify zero result for range with no GL data.
 
 **Steps:**
@@ -683,7 +667,7 @@ Each test case follows this structure:
 
 ---
 
-### B-28: Large Account Range
+### B-27: Large Account Range
 **Objective:** Verify engine handles full chart-of-accounts range.
 
 **Steps:**
@@ -1365,14 +1349,14 @@ Each test case follows this structure:
 | Section | Total Tests | Passed | Failed | Skipped |
 |---------|-------------|--------|--------|---------|
 | A — Definition Header | 10 | | | |
-| B — Account Line Type | 28 | | | |
+| B — Account Line Type | 27 | | | |
 | C — Subtotal Line Type | 6 | | | |
 | D — Calculated Line Type | 13 | | | |
 | E — Heading Line Type | 4 | | | |
 | F — IsVisible | 4 | | | |
 | G — Validations & Edge Cases | 9 | | | |
 | H — Full Scenario | 1 | | | |
-| **TOTAL** | **75** | | | |
+| **TOTAL** | **74** | | | |
 
 ---
 

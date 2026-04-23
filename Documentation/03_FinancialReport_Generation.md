@@ -148,7 +148,7 @@ EQUITY                          {{BS_EQUITY_CY}}  {{BS_EQUITY_PY}}
 
 ## Performance Notes
 
-- Data is fetched in parallel (CY, PY, PM, January balances, cumulative ranges)
+- Data is fetched in parallel (CY, PY, PM, cumulative ranges)
 - Optional fetches are skipped when not needed
 - 15-minute timeout protects against runaway processes
 - Temporary files are cleaned up automatically
