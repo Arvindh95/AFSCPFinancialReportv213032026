@@ -301,24 +301,19 @@ namespace FinancialReport.Services
             string legacyUrlBase = $"{_baseUrl}/t/{_tenantName}/api/odata/gi/{giName}";
             string selectColumns = _columnMapping.BuildSelectColumns();
 
-            // Attempt 1: Modern URL with Ledger (normal path — no trace on success)
+            // The ledger filter is preserved across both attempts. A previous version dropped
+            // the ledger filter on retry, which silently blended ACTUAL with BUDGET/REPORT
+            // ledgers when the with-ledger fetch hit a transient error. Removed — if both
+            // URL variants fail with the user-selected ledger, surface the failure.
             string filterWithLedger = AppendLedgerFilter(baseFilter, ledger);
+
+            // Attempt 1: Modern URL with Ledger
             var results = await PaginatedFetchAsync(client, modernUrlBase, filterWithLedger, selectColumns, accessToken, cancellationToken);
             if (results != null) return results;
 
-            // Attempt 2: Modern URL without Ledger (Attempt 1 with ledger filter failed)
-            PXTrace.WriteWarning($"Fallback 2: Modern URL without Ledger. URL: {modernUrlBase}, Filter: {baseFilter}");
-            results = await PaginatedFetchAsync(client, modernUrlBase, baseFilter, selectColumns, accessToken, cancellationToken);
-            if (results != null) return results;
-
-            // Attempt 3: Legacy URL with Ledger
-            PXTrace.WriteWarning($"Attempt 2 failed. Retrying with Legacy URL with Ledger. URL: {legacyUrlBase}, Filter: {filterWithLedger}");
+            // Attempt 2: Legacy URL with Ledger (URL-format fallback only)
+            PXTrace.WriteWarning($"Modern URL failed, retrying Legacy URL. Filter: {filterWithLedger}");
             results = await PaginatedFetchAsync(client, legacyUrlBase, filterWithLedger, selectColumns, accessToken, cancellationToken);
-            if (results != null) return results;
-
-            // Attempt 4: Legacy URL without Ledger
-            PXTrace.WriteWarning($"Attempt 3 failed. Retrying with Legacy URL without Ledger. URL: {legacyUrlBase}, Filter: {baseFilter}");
-            results = await PaginatedFetchAsync(client, legacyUrlBase, baseFilter, selectColumns, accessToken, cancellationToken);
             if (results != null) return results;
 
             PXTrace.WriteError("All fetch attempts failed.");
@@ -535,6 +530,8 @@ namespace FinancialReport.Services
             string legacyUrlBase = $"{_baseUrl}/t/{_tenantName}/api/odata/gi/{giName}";
             string selectColumns = _columnMapping.BuildSelectColumns();
 
+            // See ExecuteFetchWithFallbackAsync above — ledger filter is preserved across
+            // retries to avoid silently blending ledgers on transient failures.
             string filterWithLedger = AppendLedgerFilter(baseFilter, ledger);
 
             // Attempt 1: Modern URL with Ledger
@@ -542,22 +539,10 @@ namespace FinancialReport.Services
             int count = await PaginatedFetchStreamAsync(client, modernUrlBase, filterWithLedger, selectColumns, accessToken, rowConsumer, cancellationToken);
             if (count >= 0) return count;
 
-            // Attempt 2: Modern URL without Ledger
-            PXTrace.WriteWarning($"Fallback 2: Modern URL without Ledger. URL: {modernUrlBase}, Filter: {baseFilter}");
-            resetConsumer();
-            count = await PaginatedFetchStreamAsync(client, modernUrlBase, baseFilter, selectColumns, accessToken, rowConsumer, cancellationToken);
-            if (count >= 0) return count;
-
-            // Attempt 3: Legacy URL with Ledger
-            PXTrace.WriteWarning($"Attempt 2 failed. Retrying with Legacy URL with Ledger. URL: {legacyUrlBase}, Filter: {filterWithLedger}");
+            // Attempt 2: Legacy URL with Ledger (URL-format fallback only)
+            PXTrace.WriteWarning($"Modern URL failed, retrying Legacy URL. Filter: {filterWithLedger}");
             resetConsumer();
             count = await PaginatedFetchStreamAsync(client, legacyUrlBase, filterWithLedger, selectColumns, accessToken, rowConsumer, cancellationToken);
-            if (count >= 0) return count;
-
-            // Attempt 4: Legacy URL without Ledger
-            PXTrace.WriteWarning($"Attempt 3 failed. Retrying with Legacy URL without Ledger. URL: {legacyUrlBase}, Filter: {baseFilter}");
-            resetConsumer();
-            count = await PaginatedFetchStreamAsync(client, legacyUrlBase, baseFilter, selectColumns, accessToken, rowConsumer, cancellationToken);
             if (count >= 0) return count;
 
             PXTrace.WriteError("All streaming fetch attempts failed.");
