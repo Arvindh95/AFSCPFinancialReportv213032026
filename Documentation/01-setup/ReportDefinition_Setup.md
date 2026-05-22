@@ -74,7 +74,9 @@ Also visible on the same header row:
 
 ### Step 5 — Pick the Generic Inquiry
 
-**Generic Inquiry Name** drives *where* the engine pulls GL balances from. Defaults to **`AFS-Trial-Balance`**. Use the selector (magnifier icon) to pick any published GI.
+**Generic Inquiry Name** drives *where* the engine pulls GL balances from. The DAC default is **`TrialBalance`** (Acumatica's stock GI name). If your tenant ships only the AFS-branded variant **`AFS-Trial-Balance`** — which is the case for the SalesDemo deployment — change this field before saving; the selector (magnifier icon) lists every published GI in the tenant.
+
+> Generate Report runs a 1-row probe against the configured GI before fetching data. A mismatch surfaces immediately as `Generic Inquiry '<name>' was not found in tenant '<tenant>'.` rather than as a generic OData failure — so the typo is obvious. See [Troubleshooting](../03-reference/Troubleshooting.md#report-generation-errors-fr101000).
 
 ![Generic Inquiry selector](../images/report_definition/reportdef_03_gi_selector.png)
 

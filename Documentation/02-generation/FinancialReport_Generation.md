@@ -164,6 +164,14 @@ Queues a background job that reads the GL data for the chosen period, evaluates 
 
 Status immediately transitions to `In Progress`. The job runs under `PXLongOperation` with a 15-minute timeout; you can navigate away from the screen and come back — Status will update on refresh.
 
+**Pre-flight checks** (all run before the background job starts — see [Troubleshooting](../03-reference/Troubleshooting.md#report-generation-errors-fr101000)):
+
+- A record is loaded and saved (has a `ReportID`).
+- A `.docx` is attached via the Files panel.
+- Status is not currently `In Progress`.
+- **At least one Report Definition is linked** on the **Report Definitions** tab. Without this the job would silently produce a `.docx` full of zeros.
+- The **GI Name** on every linked Definition resolves to a published GI in this tenant. A 1-row probe runs against the GI before the parallel fetch tasks fan out, so a mistyped or unpublished GI name fails immediately with a clear message rather than a generic OData error.
+
 ### Download Report
 
 Returns the last successfully generated `.docx` attached to this record (the file referenced by `GeneratedFileID`). The button is hard-disabled only while a generation is **In Progress**; in all other states it is clickable but throws *"No generated file is available for download."* if no file has ever been produced (or it was just cleared by Reset Status). Effectively this means: only useful when Status = **Ready to Download**.
