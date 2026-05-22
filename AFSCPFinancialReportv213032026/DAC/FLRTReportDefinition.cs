@@ -57,8 +57,8 @@ namespace FinancialReport
         [PXDefault(ReportDefinitionType.BalanceSheet)]
         [PXUIField(DisplayName = "Report Type")]
         [PXStringList(
-            new string[] { ReportDefinitionType.BalanceSheet, ReportDefinitionType.ProfitAndLoss, ReportDefinitionType.CashFlow, ReportDefinitionType.EquityChanges, ReportDefinitionType.Custom },
-            new string[] { "Balance Sheet", "Profit & Loss", "Cash Flow", "Changes in Equity", "Custom" }
+            new string[] { ReportDefinitionType.BalanceSheet, ReportDefinitionType.ProfitAndLoss, ReportDefinitionType.CashFlow, ReportDefinitionType.Custom },
+            new string[] { "Balance Sheet", "Profit & Loss", "Cash Flow", "Custom" }
         )]
         public virtual string ReportType { get; set; }
         public abstract class reportType : PX.Data.BQL.BqlString.Field<reportType> { }
@@ -260,7 +260,6 @@ namespace FinancialReport
             public const string BalanceSheet   = "BS";
             public const string ProfitAndLoss  = "PL";
             public const string CashFlow       = "CF";
-            public const string EquityChanges  = "EQ";
             public const string Custom         = "CU";
         }
         #endregion

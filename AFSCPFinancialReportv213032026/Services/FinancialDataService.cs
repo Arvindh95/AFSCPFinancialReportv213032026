@@ -649,7 +649,7 @@ namespace FinancialReport.Services
         public string Subaccount { get; set; }
         /// <summary>
         /// Account type from the TrialBalance GI "Type" column.
-        /// Values: Asset, Liability, Expense, Income, Equity
+        /// Values: Asset, Liability, Expense, Income
         /// Used by ReportCalculationEngine for sign normalization.
         /// </summary>
         public string AccountType { get; set; }

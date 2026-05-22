@@ -295,25 +295,26 @@ namespace FinancialReport.Services
             var parts = new List<string>();
 
             // Period filter
-            if (!string.IsNullOrWhiteSpace(ds.PeriodFilterColumn) && !string.IsNullOrWhiteSpace(ds.PeriodFilterTemplate))
+            if (!string.IsNullOrWhiteSpace(ds.PeriodFilterColumn))
             {
-                string periodValue = ds.PeriodFilterTemplate
-                    .Replace("{YEAR}", year ?? "")
-                    .Replace("{MONTH}", (month ?? "").PadLeft(2, '0'));
-
                 string scope = ds.PeriodScope ?? FLRTGIDataSource.PeriodScopeType.Exact;
+                bool isDateRange = ds.PeriodFilterType == FLRTGIDataSource.GIColumnType.Date
+                                   && scope != FLRTGIDataSource.PeriodScopeType.Exact;
 
-                // Date columns with Monthly/Yearly scope use range filters (ge/lt)
-                if (ds.PeriodFilterType == FLRTGIDataSource.GIColumnType.Date
-                    && scope != FLRTGIDataSource.PeriodScopeType.Exact)
+                // Date columns with Monthly/Yearly scope use range filters (ge/lt) and
+                // do NOT need a Period Template — the range is computed from year/month.
+                if (isDateRange)
                 {
                     string dateRange = BuildDateRangeFilter(ds.PeriodFilterColumn, year, month, scope);
                     if (!string.IsNullOrWhiteSpace(dateRange))
                         parts.Add(dateRange);
                 }
-                else
+                else if (!string.IsNullOrWhiteSpace(ds.PeriodFilterTemplate))
                 {
                     // Exact match (String/Integer period columns like "012025")
+                    string periodValue = ds.PeriodFilterTemplate
+                        .Replace("{YEAR}", year ?? "")
+                        .Replace("{MONTH}", (month ?? "").PadLeft(2, '0'));
                     string periodFilter = BuildTypedFilter(ds.PeriodFilterColumn, ds.PeriodFilterType, periodValue);
                     if (!string.IsNullOrWhiteSpace(periodFilter))
                         parts.Add(periodFilter);

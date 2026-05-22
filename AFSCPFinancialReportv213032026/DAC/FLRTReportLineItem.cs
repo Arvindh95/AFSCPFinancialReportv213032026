@@ -109,14 +109,14 @@ namespace FinancialReport
         #region AccountTypeFilter
         /// <summary>
         /// Optional. Restricts this line to only accounts of this type from the GI.
-        /// A = Asset, L = Liability, E = Expense, I = Income, Q = Equity
+        /// A = Asset, L = Liability, E = Expense, I = Income
         /// Leave blank to include all types in the range.
         /// </summary>
         [PXDBString(5, IsUnicode = true)]
         [PXUIField(DisplayName = "Account Type Filter")]
         [PXStringList(
-            new string[] { "", AccountTypeValue.Asset, AccountTypeValue.Liability, AccountTypeValue.Expense, AccountTypeValue.Income, AccountTypeValue.Equity },
-            new string[] { "All Types", "Asset (A)", "Liability (L)", "Expense (E)", "Income (I)", "Equity (Q)" }
+            new string[] { "", AccountTypeValue.Asset, AccountTypeValue.Liability, AccountTypeValue.Expense, AccountTypeValue.Income },
+            new string[] { "All Types", "Asset (A)", "Liability (L)", "Expense (E)", "Income (I)" }
         )]
         public virtual string AccountTypeFilter { get; set; }
         public abstract class accountTypeFilter : PX.Data.BQL.BqlString.Field<accountTypeFilter> { }
@@ -125,7 +125,7 @@ namespace FinancialReport
         #region SignRule
         /// <summary>
         /// ASIS = keep the raw GL sign (Asset, Expense accounts)
-        /// FLIP = multiply by -1 for presentation (Liability, Income, Equity accounts)
+        /// FLIP = multiply by -1 for presentation (Liability, Income accounts)
         /// </summary>
         [PXDBString(10, IsUnicode = true)]
         [PXDefault(SignRuleValue.AsIs)]
@@ -176,7 +176,7 @@ namespace FinancialReport
         /// Simple expression referencing other LineCodes with +, -, *, / operators.
         /// Examples:
         ///   REVENUE - TOTAL_EXPENSES
-        ///   TOTAL_LIABILITIES + TOTAL_EQUITY
+        ///   TOTAL_ASSETS - TOTAL_LIABILITIES
         ///   GROSS_PROFIT - OPERATING_EXPENSES - FINANCE_COSTS
         /// </summary>
         [PXDBString(500, IsUnicode = true)]
@@ -334,7 +334,6 @@ namespace FinancialReport
             public const string Liability = "L";
             public const string Expense   = "E";
             public const string Income    = "I";
-            public const string Equity    = "Q";
         }
 
         #endregion

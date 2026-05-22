@@ -665,7 +665,6 @@ namespace FinancialReport.Services
             {
                 case FLRTReportLineItem.AccountTypeValue.Liability:
                 case FLRTReportLineItem.AccountTypeValue.Income:
-                case FLRTReportLineItem.AccountTypeValue.Equity:
                     return rawValue * -1;
 
                 case FLRTReportLineItem.AccountTypeValue.Asset:

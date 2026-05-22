@@ -95,13 +95,11 @@ namespace FinancialReport.Services
             if (month < 1 || month > 12) month = 12;
             int year = int.TryParse(currYear, out int y) ? y : DateTime.Now.Year;
 
-            // FY model: FinancialMonth = FY start. FY end month = month - 1 (wraps Jan→Dec).
-            int fyEndMonth = month == 1 ? 12 : month - 1;
-
+            // FinancialMonth IS the reporting month — matches the period GIDataFetchService filters on.
             return new PeriodLabels
             {
-                Cy = $"FY{year} ({MonthNames[fyEndMonth - 1]} {year})",
-                Py = $"FY{year - 1} ({MonthNames[fyEndMonth - 1]} {year - 1})"
+                Cy = $"FY{year} ({MonthNames[month - 1]} {year})",
+                Py = $"FY{year - 1} ({MonthNames[month - 1]} {year - 1})"
             };
         }
 
