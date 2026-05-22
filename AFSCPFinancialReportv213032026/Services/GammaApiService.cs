@@ -57,14 +57,14 @@ namespace FinancialReport.Services
             CancellationToken cancellationToken = default,
             GammaGenerationOptions options = null)
         {
-            string generationId = SubmitGeneration(financialMarkdown, presentationTitle, options);
+            string generationId = SubmitGeneration(financialMarkdown, presentationTitle, options, cancellationToken);
             PXTrace.WriteInformation($"[Gamma] Generation submitted. ID: {generationId}");
 
             string exportUrl = PollUntilCompleted(generationId, cancellationToken);
             // Export URL is the sole auth on the PPTX — log generationId only, not the URL.
             PXTrace.WriteInformation($"[Gamma] Generation completed. Downloading PPTX (generationId={generationId}).");
 
-            byte[] pptBytes = DownloadFile(exportUrl);
+            byte[] pptBytes = DownloadFile(exportUrl, cancellationToken);
             PXTrace.WriteInformation($"[Gamma] Downloaded {pptBytes.Length} bytes.");
 
             return pptBytes;
@@ -77,14 +77,14 @@ namespace FinancialReport.Services
         public byte[] GeneratePresentationFromTemplate(string financialMarkdown, string gammaTemplateId,
             CancellationToken cancellationToken = default)
         {
-            string generationId = SubmitGenerationFromTemplate(financialMarkdown, gammaTemplateId);
+            string generationId = SubmitGenerationFromTemplate(financialMarkdown, gammaTemplateId, cancellationToken);
             PXTrace.WriteInformation($"[Gamma] Template generation submitted. ID: {generationId}");
 
             string exportUrl = PollUntilCompleted(generationId, cancellationToken);
             // Export URL is the sole auth on the PPTX — log generationId only, not the URL.
             PXTrace.WriteInformation($"[Gamma] Template generation completed. Downloading PPTX (generationId={generationId}).");
 
-            byte[] pptBytes = DownloadFile(exportUrl);
+            byte[] pptBytes = DownloadFile(exportUrl, cancellationToken);
             PXTrace.WriteInformation($"[Gamma] Downloaded {pptBytes.Length} bytes.");
 
             return pptBytes;
@@ -103,7 +103,7 @@ namespace FinancialReport.Services
             return request;
         }
 
-        private string SubmitGenerationFromTemplate(string prompt, string gammaTemplateId)
+        private string SubmitGenerationFromTemplate(string prompt, string gammaTemplateId, CancellationToken cancellationToken = default)
         {
             var payload = new
             {
@@ -113,8 +113,8 @@ namespace FinancialReport.Services
             };
 
             string json  = JsonConvert.SerializeObject(payload);
-            var response = Task.Run(() => _httpClient.SendAsync(CreateRequest(HttpMethod.Post, $"{BaseUrl}/generations/from-template", json))).GetAwaiter().GetResult();
-            string body  = Task.Run(() => response.Content.ReadAsStringAsync()).GetAwaiter().GetResult();
+            var response = _httpClient.SendAsync(CreateRequest(HttpMethod.Post, $"{BaseUrl}/generations/from-template", json), cancellationToken).GetAwaiter().GetResult();
+            string body  = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
 
             if (!response.IsSuccessStatusCode)
                 throw new PXException($"[Presentation] Template generation request failed ({(int)response.StatusCode}): {body}");
@@ -128,7 +128,7 @@ namespace FinancialReport.Services
             return genId;
         }
 
-        private string SubmitGeneration(string inputText, string title, GammaGenerationOptions options = null)
+        private string SubmitGeneration(string inputText, string title, GammaGenerationOptions options = null, CancellationToken cancellationToken = default)
         {
             var opt = options ?? new GammaGenerationOptions();
             var payload = new
@@ -152,8 +152,8 @@ namespace FinancialReport.Services
             };
 
             string json  = JsonConvert.SerializeObject(payload);
-            var response = Task.Run(() => _httpClient.SendAsync(CreateRequest(HttpMethod.Post, $"{BaseUrl}/generations", json))).GetAwaiter().GetResult();
-            string body  = Task.Run(() => response.Content.ReadAsStringAsync()).GetAwaiter().GetResult();
+            var response = _httpClient.SendAsync(CreateRequest(HttpMethod.Post, $"{BaseUrl}/generations", json), cancellationToken).GetAwaiter().GetResult();
+            string body  = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
 
             if (!response.IsSuccessStatusCode)
                 throw new PXException($"[Presentation] Generation request failed ({(int)response.StatusCode}): {body}");
@@ -221,15 +221,15 @@ namespace FinancialReport.Services
             }).GetAwaiter().GetResult();
         }
 
-        private byte[] DownloadFile(string url)
+        private byte[] DownloadFile(string url, CancellationToken cancellationToken = default)
         {
             // CDN download URL is pre-signed — no API key header needed
-            var response = Task.Run(() => _httpClient.GetAsync(url)).GetAwaiter().GetResult();
+            var response = _httpClient.GetAsync(url, cancellationToken).GetAwaiter().GetResult();
 
             if (!response.IsSuccessStatusCode)
-                throw new PXException($"[Presentation] File download failed ({(int)response.StatusCode}). URL: {url}");
+                throw new PXException($"[Presentation] File download failed ({(int)response.StatusCode}).");
 
-            return Task.Run(() => response.Content.ReadAsByteArrayAsync()).GetAwaiter().GetResult();
+            return response.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult();
         }
     }
 }

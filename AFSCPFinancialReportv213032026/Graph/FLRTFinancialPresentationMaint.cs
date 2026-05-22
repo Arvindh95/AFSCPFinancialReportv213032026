@@ -256,12 +256,12 @@ namespace FinancialReport
                     if (!string.IsNullOrWhiteSpace(dbRecord.GammaTemplateId))
                     {
                         PXTrace.WriteInformation($"[Gamma] Using template ID: {dbRecord.GammaTemplateId}.");
-                        pptBytes = gammaService.GeneratePresentationFromTemplate(markdown, dbRecord.GammaTemplateId);
+                        pptBytes = gammaService.GeneratePresentationFromTemplate(markdown, dbRecord.GammaTemplateId, timeoutCancellation.Token);
                     }
                     else
                     {
                         PXTrace.WriteInformation($"[Gamma] Submitting generation. Title: {slideTitle}");
-                        pptBytes = gammaService.GeneratePresentation(markdown, slideTitle);
+                        pptBytes = gammaService.GeneratePresentation(markdown, slideTitle, timeoutCancellation.Token);
                     }
 
                     PXTrace.WriteInformation($"[Gamma] Downloaded {pptBytes.Length} bytes.");

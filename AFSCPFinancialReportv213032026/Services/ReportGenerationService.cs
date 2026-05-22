@@ -137,7 +137,7 @@ namespace FinancialReport.Services
                 // PY opening = EndingBalance at FY end of 2 years ago (source for PY Beginning Balance).
                 var taskPrior   = Task.Run(async () => { await fetchGate.WaitAsync(cancellationToken); try { return localDataService.FetchAllApiData(_currentRecord.Branch, _currentRecord.Organization, _currentRecord.Ledger, prevYearPriorPeriod, needsDetail, cancellationToken); } finally { fetchGate.Release(); } }, cancellationToken);
 
-                Task.WhenAll(taskCY, taskPY, taskRangeCY, taskRangePY, taskPrior).Wait();
+                Task.WhenAll(taskCY, taskPY, taskRangeCY, taskRangePY, taskPrior).Wait(cancellationToken);
 
                 var currYearData      = taskCY.Result;
                 var prevYearData      = taskPY.Result;
