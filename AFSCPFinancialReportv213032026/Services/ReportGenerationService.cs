@@ -59,6 +59,11 @@ namespace FinancialReport.Services
 
                 var localDataService = new FinancialDataService(_authService, tenantName, pipelineCtx.ColumnMapping);
 
+                // Probe the configured GI BEFORE the parallel fetches. If the GI name on the
+                // linked Report Definition does not match a published GI in the tenant, every
+                // fetch task would 404 and the user would just see "Failed to fetch OData".
+                localDataService.ValidateGIExists(cancellationToken);
+
                 // 2. Get Template File
                 var (templateFileContent, originalFileName) = _fileService.GetFileContentAndName(_currentRecord.Noteid, _currentRecord);
                 if (templateFileContent == null || templateFileContent.Length == 0)

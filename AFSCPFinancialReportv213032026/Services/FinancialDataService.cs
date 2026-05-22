@@ -584,6 +584,45 @@ namespace FinancialReport.Services
         }
 
         /// <summary>
+        /// Probes the configured GI to confirm it exists and is reachable before the
+        /// parallel fetch tasks fan out. Throws a clear configuration error early instead
+        /// of letting every fetch task fail with the generic FailedToFetchOData.
+        /// </summary>
+        public void ValidateGIExists(CancellationToken cancellationToken = default)
+        {
+            string giName = _columnMapping.GIName;
+            string accessToken = _authService.AuthenticateAndGetToken();
+            string modernUrl = $"{_baseUrl}/odata/{_tenantName}/{giName}?$top=1&$select={_columnMapping.AccountColumn}";
+            string legacyUrl = $"{_baseUrl}/t/{_tenantName}/api/odata/gi/{giName}?$top=1&$select={_columnMapping.AccountColumn}";
+
+            foreach (var url in new[] { modernUrl, legacyUrl })
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                try
+                {
+                    using (var request = new HttpRequestMessage(HttpMethod.Get, url))
+                    {
+                        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+                        var response = _httpClient.SendAsync(request, cancellationToken).GetAwaiter().GetResult();
+                        if (response.IsSuccessStatusCode) return; // GI reachable on this URL form
+                        if ((int)response.StatusCode != 404)
+                        {
+                            // Not a "missing GI" — surface as generic OData failure
+                            PXTrace.WriteWarning($"GI probe {url} returned {(int)response.StatusCode}.");
+                        }
+                    }
+                }
+                catch (OperationCanceledException) { throw; }
+                catch (Exception ex)
+                {
+                    PXTrace.WriteWarning($"GI probe {url} threw: {ex.Message}");
+                }
+            }
+
+            throw new PXException(Messages.GIDataSourceNotFound, giName, _tenantName);
+        }
+
+        /// <summary>
         /// Fetches column names from a GI by retrieving a single row and inspecting JSON properties.
         /// Used by the "Detect Columns" action on the Report Definition screen.
         /// </summary>
