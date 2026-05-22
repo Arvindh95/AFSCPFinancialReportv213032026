@@ -259,12 +259,11 @@ The **Presentation Description** field controls what the AI does with your data.
 3. Asset Analysis
 4. Income Performance
 5. Expense Analysis
-6. Equity and Capital Structure
-7. Liability Analysis
-8. Month-over-Month Key Movements
-9. Financial Health Assessment
-10. Risks and Observations
-11. Strategic Recommendations
+6. Liability Analysis
+7. Month-over-Month Key Movements
+8. Financial Health Assessment
+9. Risks and Observations
+10. Strategic Recommendations
 12. Key Takeaways
 
 **If you fill it in:** Your text completely replaces the default prompt. Examples:

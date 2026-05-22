@@ -27,7 +27,6 @@ Every visible line item produces three placeholders.
 | Total Assets              | {{DEMO_TA_CY}}      | {{DEMO_TA_PY}}      | {{DEMO_TA_PM}}      |
 | Payables (Flip Sign)      | {{DEMO_PAYABLE_CY}} | {{DEMO_PAYABLE_PY}} | {{DEMO_PAYABLE_PM}} |
 | Total Liabilities         | {{DEMO_TL_CY}}      | {{DEMO_TL_PY}}      | {{DEMO_TL_PM}}      |
-| Equity (Flip Sign)        | {{DEMO_EQUITY_CY}}  | {{DEMO_EQUITY_PY}}  | {{DEMO_EQUITY_PM}}  |
 
 ---
 
@@ -38,7 +37,6 @@ These lines don't pull from GL directly. They use formulas referencing other Lin
 | Line Item        | Formula          | Current Year            | Prior Year              |
 | ---------------- | ---------------- | ----------------------- | ----------------------- |
 | Net Assets       | TA - TL          | {{DEMO_NA_CY}}          | {{DEMO_NA_PY}}          |
-| Balance Check    | TA - TL - EQUITY | {{DEMO_CHECK_CY}}       | {{DEMO_CHECK_PY}}       |
 | Uses Hidden Line | CASH + HIDDEN    | {{DEMO_USES_HIDDEN_CY}} | {{DEMO_USES_HIDDEN_PY}} |
 
 ---
@@ -144,9 +142,7 @@ Line Items:
 | 50   | TA          | Subtotal      |           |         |                   |       |        |                  | Yes     |
 | 60   | PAYABLE     | Account Range | 20100     | 20199   | Ending Balance    | Flip  | TL     |                  | Yes     |
 | 70   | TL          | Subtotal      |           |         |                   |       |        |                  | Yes     |
-| 80   | EQUITY      | Account Range | 30100     | 30999   | Ending Balance    | Flip  |        |                  | Yes     |
 | 90   | NA          | Calculated    |           |         |                   |       |        | TA - TL          | Yes     |
-| 100  | CHECK       | Calculated    |           |         |                   |       |        | TA - TL - EQUITY | Yes     |
 | 110  | CASH_BEG    | Account Range | 10100     | 10199   | Beginning Balance | As-Is |        |                  | Yes     |
 | 120  | YTD_DEB     | Account Range | 10100     | 10199   | Debit (YTD)       | As-Is |        |                  | Yes     |
 | 130  | YTD_CRD     | Account Range | 10100     | 10199   | Credit (YTD)      | As-Is |        |                  | Yes     |
@@ -179,7 +175,6 @@ Line Items:
 | 50   | TA        | Subtotal      |           |         |                |       |        |         | Yes     |
 | 60   | PAYABLE   | Account Range | 20100     | 20199   | Ending Balance | Flip  | TL     |         | Yes     |
 | 70   | TL        | Subtotal      |           |         |                |       |        |         | Yes     |
-| 80   | EQUITY    | Account Range | 30100     | 30999   | Ending Balance | Flip  |        |         | Yes     |
 
 ---
 

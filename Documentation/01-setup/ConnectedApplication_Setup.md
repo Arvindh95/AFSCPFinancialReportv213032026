@@ -21,7 +21,7 @@ This document describes how to create a Connected Application in Acumatica to ob
 
 > **Screen ID:** SM303010
 
-![Connected Applications screen](images/connected_app/connected_app_01.png)
+![Connected Applications screen](../images/connected_app/connected_app_01.png)
 
 ---
 
@@ -37,7 +37,7 @@ In the **Client Name** field, enter a meaningful name that identifies this appli
 
 > Example: `AFS Financial Report API`
 
-![Enter Client Name](images/connected_app/connected_app_02_client_name.png)
+![Enter Client Name](../images/connected_app/connected_app_02_client_name.png)
 
 ---
 
@@ -45,9 +45,9 @@ In the **Client Name** field, enter a meaningful name that identifies this appli
 
 Click the **Flow** dropdown and select **Resource Owner Password Credentials**.
 
-![Flow dropdown open](images/connected_app/connected_app_03_flow_dropdown.png)
+![Flow dropdown open](../images/connected_app/connected_app_03_flow_dropdown.png)
 
-![Flow selected](images/connected_app/connected_app_04_flow_selected.png)
+![Flow selected](../images/connected_app/connected_app_04_flow_selected.png)
 
 > Selecting this flow automatically reveals the **Refresh Tokens** section on the right.
 
@@ -70,7 +70,7 @@ Adjust the **Absolute Lifetime (Days)** if a longer token validity is required (
 
 Click **Save** (or press `Ctrl+S`). Acumatica generates a unique **Client ID**.
 
-![Saved with Client ID](images/connected_app/connected_app_05_saved_client_id.png)
+![Saved with Client ID](../images/connected_app/connected_app_05_saved_client_id.png)
 
 > **Important:** Copy and store the full **Client ID** value. It will be needed in the Tenant Credentials screen (FR101001).
 >
@@ -83,7 +83,7 @@ Click **Save** (or press `Ctrl+S`). Acumatica generates a unique **Client ID**.
 
 In the **Secrets** tab, click **Add Shared Secret**. A popup appears with an auto-generated secret value.
 
-![Add Shared Secret popup](images/connected_app/connected_app_06_add_secret_popup.png)
+![Add Shared Secret popup](../images/connected_app/connected_app_06_add_secret_popup.png)
 
 > **Important:** The secret value is shown **only once**. Copy it now before clicking OK.
 
@@ -96,9 +96,9 @@ In the **Secrets** tab, click **Add Shared Secret**. A popup appears with an aut
 2. **Expires On (UTC)** — Set an expiry date.
 3. **Value** — The secret is auto-generated. Copy this value and store it securely.
 
-![Secret details filled](images/connected_app/connected_app_07_secret_description.png)
+![Secret details filled](../images/connected_app/connected_app_07_secret_description.png)
 
-![Secret expiry and value](images/connected_app/connected_app_08_secret_expiry_value.png)
+![Secret expiry and value](../images/connected_app/connected_app_08_secret_expiry_value.png)
 
 ---
 
@@ -106,7 +106,7 @@ In the **Secrets** tab, click **Add Shared Secret**. A popup appears with an aut
 
 Click **OK** to confirm. The secret appears in the Secrets grid with the value masked as `********`.
 
-![Secret added to grid](images/connected_app/connected_app_09_secret_added.png)
+![Secret added to grid](../images/connected_app/connected_app_09_secret_added.png)
 
 ---
 
@@ -114,7 +114,7 @@ Click **OK** to confirm. The secret appears in the Secrets grid with the value m
 
 Click **Save** again to persist the secret.
 
-![Final saved state](images/connected_app/connected_app_10_final_saved.png)
+![Final saved state](../images/connected_app/connected_app_10_final_saved.png)
 
 ---
 
@@ -136,4 +136,4 @@ These values are entered in **Tenant Credentials (FR101001)** during AFS Financi
 
 ## Next Step
 
-Proceed to [Tenant Credentials Setup](01_TenantCredentials_Setup.md) and enter the Client ID and Secret obtained above.
+Proceed to [Tenant Credentials Setup](TenantCredentials_Setup.md) and enter the Client ID and Secret obtained above.

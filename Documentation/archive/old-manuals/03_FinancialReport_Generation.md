@@ -124,8 +124,6 @@ ASSETS
 LIABILITIES
   Payables                      {{BS_PAYABLE_CY}} {{BS_PAYABLE_PY}}
   TOTAL LIABILITIES             {{BS_TL_CY}}      {{BS_TL_PY}}
-
-EQUITY                          {{BS_EQUITY_CY}}  {{BS_EQUITY_PY}}
 ```
 
 4. **FR101000:** Create report, set Year=2025, Month=December, attach template, link BS definition

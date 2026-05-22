@@ -77,7 +77,7 @@ The grid at the bottom is where you define each line of the financial report.
 | Balance Type | What It Returns | When to Use |
 |---|---|---|
 | Ending Balance | Balance at end of selected period | Balance Sheet items (most common) |
-| Beginning Balance | Fiscal year opening balance | Opening balances, equity movements |
+| Beginning Balance | Fiscal year opening balance | Opening balances, capital movements |
 | Debit (YTD) | Cumulative debits for the full fiscal year | P&L analysis, cash flow |
 | Credit (YTD) | Cumulative credits for the full fiscal year | P&L analysis, cash flow |
 | Movement (YTD) | Net movement (Debit - Credit) for fiscal year | P&L items |
@@ -90,7 +90,7 @@ The grid at the bottom is where you define each line of the financial report.
 | Rule | What It Does | Use For |
 |---|---|---|
 | As-Is | Keeps the GL value unchanged | Assets, Expenses |
-| Flip Sign | Multiplies by -1 | Liabilities, Income, Equity (GL stores these as negative) |
+| Flip Sign | Multiplies by -1 | Liabilities, Income (GL stores these as negative) |
 
 ---
 
@@ -112,9 +112,7 @@ The grid at the bottom is where you define each line of the financial report.
 | 80 | CL | Total Current Liabilities | Subtotal | | | | | TL | |
 | 90 | LTD | Long-Term Debt | Account Range | 25100 | 25999 | Ending Balance | Flip Sign | TL | |
 | 100 | TL | TOTAL LIABILITIES | Subtotal | | | | | | |
-| 110 | EQUITY | Total Equity | Account Range | 30100 | 30999 | Ending Balance | Flip Sign | | |
 | 120 | NA | Net Assets (TA - TL) | Calculated | | | | | | TA - TL |
-| 130 | CHECK | Balance Check (should be 0) | Calculated | | | | | | TA - TL - EQUITY |
 
 **How the subtotal chain works:**
 ```

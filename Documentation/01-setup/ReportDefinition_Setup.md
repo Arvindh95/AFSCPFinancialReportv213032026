@@ -6,7 +6,7 @@ This document describes how to create an **AFS Report Definition**. A Report Def
 2. Which **columns** on that GI carry the balance figures, filter keys, and period tags, and
 3. Which **line items** (account ranges, subtotals, calculated lines, headings) to emit as placeholders in the final report.
 
-One definition is typically created per statement type (Balance Sheet, P&L, Cash Flow, etc.) and then linked to the **Financial Report (FR301000)** or **Presentation Generation (FR301001)** screen.
+One definition is typically created per statement type (Balance Sheet, P&L, Cash Flow, etc.) and then linked to the **[Financial Report (FR101000)](../02-generation/FinancialReport_Generation.md)** or **[MBR Report Generation (FR101003)](../02-generation/MBRReport_Generation.md)** screen.
 
 > **Period model.** All balances surfaced by a definition are **fiscal-year-to-date** figures (FY start → selected period end). Each visible line emits **two** placeholders: `_CY` (current year) and `_PY` (previous year). There is no single-period / month-only balance type.
 
@@ -14,7 +14,7 @@ One definition is typically created per statement type (Balance Sheet, P&L, Cash
 
 ## Prerequisites
 
-- Tenant credentials already saved in [Tenant Credentials (FR101001)](01_TenantCredentials_Setup.md).
+- Tenant credentials already saved in [Tenant Credentials (FR101001)](TenantCredentials_Setup.md).
 - A Generic Inquiry is published that exposes the GL balances you want to consume. The stock GI is **`AFS-Trial-Balance`**; any GI with account / balance / period columns works.
 - You know the GL account ranges that make up each line of the statement you are modelling.
 
@@ -28,7 +28,7 @@ One definition is typically created per statement type (Balance Sheet, P&L, Cash
 
 > **Screen ID:** FR101002
 
-![AFS Report Definition landing screen](images/report_definition/reportdef_01_landing.png)
+![AFS Report Definition landing screen](../images/report_definition/reportdef_01_landing.png)
 
 ---
 
@@ -49,7 +49,7 @@ Enter the four required header fields:
 | **Description**      | `Demo Balance Sheet`| Free-text label, max 255 chars. Appears in the selector dropdown on downstream screens.                                                           |
 | **Report Type**      | `Balance Sheet`     | Metadata tag — see Step 4.                                                                                                                        |
 
-![Header filled — TESTER record showing Definition Code, Prefix, Report Type, and Data Source](images/report_definition/reportdef_02_header_filled.png)
+![Header filled — TESTER record showing Definition Code, Prefix, Report Type, and Data Source](../images/report_definition/reportdef_02_header_filled.png)
 
 ---
 
@@ -62,14 +62,13 @@ Enter the four required header fields:
 | `BS`  | Balance Sheet (default) |
 | `PL`  | Profit & Loss        |
 | `CF`  | Cash Flow            |
-| `EQ`  | Changes in Equity    |
 | `CU`  | Custom               |
 
-![Report Type dropdown open — 5 values](images/report_definition/reportdef_03_reporttype_dropdown.png)
+![Report Type dropdown open — 5 values](../images/report_definition/reportdef_03_reporttype_dropdown.png)
 
 Also visible on the same header row:
 
-- **Active** — uncheck to hide this definition from the selector on FR301000 / FR301001 without deleting it.
+- **Active** — uncheck to hide this definition from the selector on FR101000 / FR101003 without deleting it.
 
 ---
 
@@ -77,7 +76,7 @@ Also visible on the same header row:
 
 **Generic Inquiry Name** drives *where* the engine pulls GL balances from. Defaults to **`AFS-Trial-Balance`**. Use the selector (magnifier icon) to pick any published GI.
 
-![Generic Inquiry selector](images/report_definition/reportdef_03_gi_selector.png)
+![Generic Inquiry selector](../images/report_definition/reportdef_03_gi_selector.png)
 
 The selector lists all `GIDesign` records in the tenant. Any GI that returns rows keyed by account with balance figures can be used — the column mapping in Step 6 tells the engine which GI column carries each concept.
 
@@ -92,12 +91,12 @@ This section tells the engine *which column in the chosen GI* holds each balance
 | Field                      | Default Column       | Purpose                                                                              |
 | -------------------------- | -------------------- | ------------------------------------------------------------------------------------ |
 | **Account Column**         | `Account`            | GL account code. Used for account-range filtering on `ACCOUNT` lines.                |
-| **Account Type Column**    | `Type`               | Returns `A/L/E/I/Q`. Drives automatic account-type sign normalization and the optional *Account Type Filter* on line items. |
+| **Account Type Column**    | `Type`               | Returns `A/L/E/I`. Drives automatic account-type sign normalization and the optional *Account Type Filter* on line items. |
 | **Beginning Balance Column** | `BeginningBalance` | Opening balance at the start of the fiscal year. Read when `Balance Type = BEGINNING`.|
 | **Ending Balance Column**  | `EndingBalance`      | Closing balance as at the selected period end. Read when `Balance Type = ENDING` *(default)*. |
 | **Debit Column**           | `Debit`              | Fiscal-year-to-date debit sum. Read when `Balance Type = DEBIT`.                     |
 | **Credit Column**          | `Credit`             | Fiscal-year-to-date credit sum. Read when `Balance Type = CREDIT`.                   |
-| **Movement Column**        | `Movement`           | Fiscal-year-to-date net movement (`Debit − Credit`). Read when `Balance Type = MOVEMENT`. |
+| **Movement Column**        | `Movement`           | Listed in the OData `$select` clause for completeness. **Not consumed by the engine** — when `Balance Type = MOVEMENT` the engine derives the value as `Debit − Credit` from the columns mapped above. Safe to leave at the default. |
 
 #### Period & filter columns
 
@@ -109,9 +108,9 @@ This section tells the engine *which column in the chosen GI* holds each balance
 | **Organization Column**  | `OrganizationID`    | Organization code column. Referenced by **Organization Filter**.                         |
 | **Ledger Column**        | `LedgerID`          | Ledger code column. Referenced by **Ledger Filter**.                                     |
 
-> If you clone or customize the stock GI, rename these columns here to match the new field names. All 13 mappings are required — save is blocked if any are blank.
+> If you clone or customize the stock GI, rename these columns here to match the new field names. The 13 mapping fields default to the stock `AFS-Trial-Balance` column names — save is **not** blocked if you blank one out, but the engine will fall back to the default name (`Account`, `EndingBalance`, …) at fetch time. Set them explicitly when working against a renamed GI.
 
-![Account Column selector open](images/report_definition/reportdef_04_accountcolumn_selector.png)
+![Account Column selector open](../images/report_definition/reportdef_04_accountcolumn_selector.png)
 
 ---
 
@@ -124,7 +123,7 @@ Controls how numeric placeholders are formatted when they appear in the final Wo
 | **Rounding Level**   | `UNITS` (default), `THOUS`, `MILL`    | Divides all numbers by 1 / 1,000 / 1,000,000 before rendering.                   |
 | **Decimal Places**   | `0` (default), `1`, `2`               | Digits shown after the decimal point.                                            |
 
-![Formatting section expanded — Rounding Level = Units, Decimal Places = 0](images/report_definition/reportdef_04_formatting_rounding.png)
+![Formatting section expanded — Rounding Level = Units, Decimal Places = 0](../images/report_definition/reportdef_04_formatting_rounding.png)
 
 Example: With Rounding Level = `THOUS` and Decimal Places = `1`, a raw value of `1,234,567.89` renders as `1,234.6`.
 
@@ -136,7 +135,7 @@ Example: With Rounding Level = `THOUS` and Decimal Places = `1`, a raw value of 
 
 Each row in **Line Items** is a single placeholder that will appear in the generated report. The engine calculates one CY and one PY value per visible row. The grid columns are as follows.
 
-![Line Items grid — TESTER record with 5 rows demonstrating all 5 balance types](images/report_definition/reportdef_05_line_items_grid.png)
+![Line Items grid — TESTER record with 5 rows demonstrating all 5 balance types](../images/report_definition/reportdef_05_line_items_grid.png)
 
 ### Columns — overview
 
@@ -148,9 +147,9 @@ Each row in **Line Items** is a single placeholder that will appear in the gener
 | **Line Type**          | yes              | Determines how the engine computes this line. See table below.                                                                                        |
 | **Account From / To**  | Account lines    | Inclusive GL account range to sum. Example: `10000`…`10999`.                                                                                          |
 | **Account Type Filter**| optional         | Restrict the range to a single GL account type.                                                                                                       |
-| **Sign Rule**          | Account lines    | `ASIS` keeps the raw GL sign; `FLIP` multiplies by −1 for presentation (typical for Liability / Income / Equity).                                     |
+| **Sign Rule**          | Account lines    | `ASIS` keeps the raw GL sign; `FLIP` multiplies by −1 for presentation (typical for Liability / Income).                                              |
 | **Balance Type**       | Account lines    | Which GI balance column to read. Five options — all fiscal-year-to-date except the two point-in-time balances. See [Balance Type values](#balance-type-values). |
-| **Group / Parent Line**| Subtotal children | The subtotal `LineCode` this row rolls up into. Example: child rows CASH, AR, INV all set Parent = `CURRENT_ASSETS`.                                  |
+| **Group / Parent Line**| optional         | The subtotal `LineCode` this row rolls up into. Editable on `ACCOUNT`, `SUBTOTAL`, and `CALCULATED` lines (so subtotals can nest, and a calculated KPI can roll into a parent subtotal). Disabled on `HEADING`. Example: child rows CASH, AR, INV all set Parent = `CURRENT_ASSETS`. |
 | **Formula**            | Calculated lines | Arithmetic expression over other `LineCode`s using `+ − × ÷` and parentheses. Example: `REVENUE - COGS`. References may also cross definitions using the fully qualified `<Prefix>_<LineCode>` form — see [Cross-Definition Formulas](#cross-definition-formulas). |
 | **Visible in Report**  | yes              | Default true. Uncheck to keep the value internal (usable in formulas / subtotals) without emitting a placeholder.                                     |
 | **Subaccount Filter**  | optional         | Exact-match subaccount, e.g. `000-000`. Blank = all subaccounts.                                                                                      |
@@ -171,7 +170,7 @@ Each row in **Line Items** is a single placeholder that will appear in the gener
 | `CALCULATED` | Calculated     | Evaluate `Formula` at runtime, referencing other `LineCode`s. Supports `+ − × ÷` and parentheses.                                |
 | `HEADING`    | Heading        | Display-only. No value is computed; used to emit a section header into the report.                                               |
 
-![Line Type dropdown open — 4 values](images/report_definition/reportdef_07_line_type_dropdown.png)
+![Line Type dropdown open — 4 values](../images/report_definition/reportdef_07_line_type_dropdown.png)
 
 ---
 
@@ -182,12 +181,12 @@ Applies only to `ACCOUNT` lines. Determines which column from the GI mapping is 
 | Code        | Label              | Column used                    | Typical use                                                    |
 | ----------- | ------------------ | ------------------------------ | -------------------------------------------------------------- |
 | `ENDING`    | Ending Balance *(default)* | **Ending Balance Column**    | Balance Sheet lines (point-in-time snapshot at period end).    |
-| `BEGINNING` | Beginning Balance  | **Beginning Balance Column**   | Opening-balance columns, equity roll-forwards.                 |
+| `BEGINNING` | Beginning Balance  | **Beginning Balance Column**   | Opening-balance columns, capital roll-forwards.                |
 | `DEBIT`     | Debit (YTD)        | **Debit Column**               | Gross debit activity FY-to-date.                               |
 | `CREDIT`    | Credit (YTD)       | **Credit Column**              | Gross credit activity FY-to-date.                              |
-| `MOVEMENT`  | Movement (YTD)     | **Movement Column** (`Debit − Credit` FY-to-date) | P&L lines — revenue, expenses, net movement FY-to-date. |
+| `MOVEMENT`  | Movement (YTD)     | **Debit Column − Credit Column** *(derived; the Movement Column mapping is fetched but not consumed)* | P&L lines — revenue, expenses, net movement FY-to-date. |
 
-![Balance Type dropdown open — 5 values](images/report_definition/reportdef_06_balance_type_dropdown.png)
+![Balance Type dropdown open — 5 values](../images/report_definition/reportdef_06_balance_type_dropdown.png)
 
 > **Why no single-period (month-only) balance type?** The stock AFS workflow reports fiscal-year performance (CY vs prior-year CY). If you need a month-only view, filter the underlying GI by period, or compute the delta in the template (`{{BS_X_CY}} - {{BS_X_PY}}`).
 
@@ -197,7 +196,7 @@ Applies only to `ACCOUNT` lines. Determines which column from the GI mapping is 
 
 Sign handling is **two-stage** inside the engine:
 
-1. **Automatic account-type normalization** (`ApplyAccountTypeSign`). When the GI row has an **Account Type** (`A`/`L`/`E`/`I`/`Q`) in the mapped type column, the engine multiplies the raw GL value by `−1` for credit-normal types (`L`, `I`, `Q`). Asset/Expense values pass through unchanged. This turns credit-normal GL values (Acumatica stores them negative) into the positive figures expected on a financial statement.
+1. **Automatic account-type normalization** (`ApplyAccountTypeSign`). When the GI row has an **Account Type** (`A`/`L`/`E`/`I`) in the mapped type column, the engine multiplies the raw GL value by `−1` for credit-normal types (`L`, `I`). Asset/Expense values pass through unchanged. This turns credit-normal GL values (Acumatica stores them negative) into the positive figures expected on a financial statement.
 2. **User-controlled Sign Rule** (this column). Applied **after** the automatic normalization.
 
 | Code   | Label       | Math               | When to use                                                                                                                                                     |
@@ -205,9 +204,9 @@ Sign handling is **two-stage** inside the engine:
 | `ASIS` | As-Is       | no extra multiply  | **Default — correct for nearly every line.** The engine has already normalized credit-normal types for you.                                                    |
 | `FLIP` | Flip Sign   | `× −1`             | Use only when (a) the GI's type column is blank/unmapped so automatic normalization did not fire, or (b) you specifically want the opposite of the normal sign. |
 
-![Sign Rule dropdown open — As-Is / Flip Sign](images/report_definition/reportdef_08_sign_rule_dropdown.png)
+![Sign Rule dropdown open — As-Is / Flip Sign](../images/report_definition/reportdef_08_sign_rule_dropdown.png)
 
-> **Gotcha.** Setting `FLIP` on a Liability/Income/Equity line when the type column *is* populated will double-flip (`−1 × −1 = +1` relative to raw, i.e. a negative value on the statement). If liabilities show up negative after generation, check this column first.
+> **Gotcha.** Setting `FLIP` on a Liability/Income line when the type column *is* populated will double-flip (`−1 × −1 = +1` relative to raw, i.e. a negative value on the statement). If liabilities show up negative after generation, check this column first.
 
 ---
 
@@ -222,7 +221,6 @@ Optional hard-filter on the GL account type. Uses the column mapped in **Account
 | `L`    | Liability     |
 | `E`    | Expense       |
 | `I`    | Income        |
-| `Q`    | Equity        |
 
 Leave blank unless you want to clamp a range that spans multiple account types.
 
@@ -299,7 +297,7 @@ Example — with **Prefix = DB** and **Line Code = CASH**:
 {{DB_CASH_PY}}
 ```
 
-See [Placeholder Reference](06_Placeholder_Reference.md) for the full placeholder catalogue.
+See [Placeholder Reference](../03-reference/Placeholder_Reference.md) for the full placeholder catalogue.
 
 ---
 
@@ -318,9 +316,8 @@ Assume the `AFS-Trial-Balance` GI returns the following rows as at **end of Apri
 | 10300   | A    | 25,000.00        | 31,500.00     | 10,000      | 3,500        | 6,500          |
 | 20100   | L    | −20,000.00       | −28,000.00    | 2,000       | 10,000       | −8,000         |
 | 20200   | L    | −50,000.00       | −60,000.00    | 5,000       | 15,000       | −10,000        |
-| 30100   | Q    | −75,000.00       | −92,000.00    | 0           | 17,000       | −17,000        |
 
-> Liabilities and Equity carry negative signs at the GL level (credit-normal). The engine's automatic **account-type normalization** (see [Sign Rule values](#sign-rule-values)) converts these to positive for presentation before Sign Rule is applied. All lines below use `Sign Rule = ASIS` — the engine has already done the sign work.
+> Liabilities carry negative signs at the GL level (credit-normal). The engine's automatic **account-type normalization** (see [Sign Rule values](#sign-rule-values)) converts these to positive for presentation before Sign Rule is applied. All lines below use `Sign Rule = ASIS` — the engine has already done the sign work.
 
 ### 2 — Definition header
 
@@ -356,12 +353,11 @@ Decimal Places      : 0
 | 20   | AR                | Accounts Receivable       | Account    | 10200     | 10200   | ASIS      | ENDING       | CURRENT_ASSETS  |                                          | ✓       |
 | 30   | INVENTORY         | Inventory                 | Account    | 10300     | 10300   | ASIS      | ENDING       | CURRENT_ASSETS  |                                          | ✓       |
 | 100  | CURRENT_ASSETS    | Total Current Assets      | Subtotal   |           |         |           |              |                 |                                          | ✓       |
-| 105  | HDR_LIAB_EQ       | LIABILITIES & EQUITY      | Heading    |           |         |           |              |                 |                                          | ✓       |
+| 105  | HDR_LIAB          | LIABILITIES               | Heading    |           |         |           |              |                 |                                          | ✓       |
 | 110  | AP                | Accounts Payable          | Account    | 20100     | 20100   | ASIS      | ENDING       | TOTAL_LIAB      |                                          | ✓       |
 | 120  | LOAN              | Long-Term Loan            | Account    | 20200     | 20200   | ASIS      | ENDING       | TOTAL_LIAB      |                                          | ✓       |
 | 200  | TOTAL_LIAB        | Total Liabilities         | Subtotal   |           |         |           |              |                 |                                          | ✓       |
-| 210  | EQUITY            | Shareholder Equity        | Account    | 30100     | 30100   | ASIS      | ENDING       |                 |                                          | ✓       |
-| 300  | CHECK_TOTAL       | Assets − (Liab + Equity)  | Calculated |           |         |           |              |                 | `CURRENT_ASSETS - TOTAL_LIAB - EQUITY`   | ✓       |
+| 300  | NET_ASSETS        | Net Assets (A − L)        | Calculated |           |         |           |              |                 | `CURRENT_ASSETS - TOTAL_LIAB`            | ✓       |
 
 ### 4 — How each row computes
 
@@ -374,10 +370,9 @@ Decimal Places      : 0
 | `AP`              | `EndingBalance[20100]` × type-sign(L)=−1 × ASIS = `−28,000 × −1 × +1`              | `28,000`    |
 | `LOAN`            | `EndingBalance[20200]` × type-sign(L)=−1 × ASIS = `−60,000 × −1 × +1`              | `60,000`    |
 | `TOTAL_LIAB`      | Subtotal of children where `Parent = TOTAL_LIAB`                                   | `88,000`    |
-| `EQUITY`          | `EndingBalance[30100]` × type-sign(Q)=−1 × ASIS = `−92,000 × −1 × +1`              | `92,000`    |
-| `CHECK_TOTAL`     | `CURRENT_ASSETS − TOTAL_LIAB − EQUITY`                                             | `0`         |
+| `NET_ASSETS`      | `CURRENT_ASSETS − TOTAL_LIAB`                                                      | `92,000`    |
 
-`CHECK_TOTAL = 0` confirms the balance sheet balances — a useful CALCULATED line to include while testing.
+`NET_ASSETS` is the residual after liabilities — useful as a tie-out figure for downstream placeholder mappings.
 
 ### 5 — Placeholders emitted
 
@@ -392,12 +387,11 @@ With **Prefix = `DB`**, the engine writes the following key/value pairs into the
 | `{{DB_AP_CY}}`             | `28,000`                           |
 | `{{DB_LOAN_CY}}`           | `60,000`                           |
 | `{{DB_TOTAL_LIAB_CY}}`     | `88,000`                           |
-| `{{DB_EQUITY_CY}}`         | `92,000`                           |
-| `{{DB_CHECK_TOTAL_CY}}`    | `0`                                |
+| `{{DB_NET_ASSETS_CY}}`     | `92,000`                           |
 
 Each key is **also** emitted with a `_PY` suffix — same formula evaluated against the prior-year GI rows (April 2025, same FY-to-date window).
 
-> Heading rows (`HDR_ASSETS`, `HDR_LIAB_EQ`) do **not** emit placeholders — they only print the description as a section header in the markdown.
+> Heading rows (`HDR_ASSETS`, `HDR_LIAB`) do **not** emit placeholders — they only print the description as a section header in the markdown.
 
 ### 6 — Effect of Rounding Level
 
@@ -407,7 +401,7 @@ If you switch **Rounding Level = `THOUS`** and **Decimal Places = `1`**, the sam
 | -------------------------- | ----------- | ----------- |
 | `{{DB_CASH_CY}}`           | `52,500`    | `52.5`      |
 | `{{DB_CURRENT_ASSETS_CY}}` | `180,000`   | `180.0`     |
-| `{{DB_EQUITY_CY}}`         | `92,000`    | `92.0`      |
+| `{{DB_NET_ASSETS_CY}}`     | `92,000`    | `92.0`      |
 
 Useful when the audience is senior management and you want figures in thousands or millions.
 
@@ -486,7 +480,7 @@ Each key is also emitted with a `_PY` suffix — same formulas evaluated against
 
 ## Cross-Definition Formulas
 
-A `CALCULATED` line is not restricted to Line Codes declared inside its own definition. When two or more definitions are **linked on the same report record** (child grid on [Financial Report Generation — Step 8](FinancialReport_Generation.md#step-8--link-one-or-more-report-definitions)), the engine concatenates all of their placeholder dictionaries into one namespace before evaluating formulas. That means a line in one definition can reference a line in another simply by qualifying the token with the other definition's **Prefix**.
+A `CALCULATED` line is not restricted to Line Codes declared inside its own definition. When two or more definitions are **linked on the same report record** (child grid on [Financial Report Generation — Step 8](../02-generation/FinancialReport_Generation.md#step-8--link-one-or-more-report-definitions)), the engine concatenates all of their placeholder dictionaries into one namespace before evaluating formulas. That means a line in one definition can reference a line in another simply by qualifying the token with the other definition's **Prefix**.
 
 ### Reference syntax
 
@@ -542,11 +536,11 @@ This example uses the two definitions already worked through above — **Mini Ba
 | `DB_AP`                             | `28,000`        | `DP_TAX`                | `20,000`        |
 | `DB_LOAN`                           | `60,000`        | `DP_NI`                 | `70,000`        |
 | `DB_TOTAL_LIAB`                     | `88,000`        |                         |                 |
-| `DB_EQUITY`                         | `92,000`        |                         |                 |
+| `DB_NET_ASSETS`                     | `92,000`        |                         |                 |
 
 > The values shown are the April-2026 (CY) figures. The same tokens resolve to different values on the PY pass (April 2025), so the same formula produces `_CY` and `_PY` placeholders automatically. See **Automatic CY / PY evaluation** above.
 
-> Mini BS has no separate Fixed Assets range, so `DB_CURRENT_ASSETS` = Total Assets for this dataset. The identity `CURRENT_ASSETS = TOTAL_LIAB + EQUITY` (`180,000 = 88,000 + 92,000`) confirms it.
+> Mini BS has no separate Fixed Assets range, so `DB_CURRENT_ASSETS` = Total Assets for this dataset. `NET_ASSETS = CURRENT_ASSETS − TOTAL_LIAB` (`180,000 − 88,000 = 92,000`) is the residual figure for this dataset.
 
 **Ratios definition header**
 
@@ -564,19 +558,19 @@ Decimal Places  : 2        ← ratios are fractional; show 2 decimals
 
 | Sort | Line Code       | Description           | Line Type  | Formula                                              |
 | ---- | --------------- | --------------------- | ---------- | ---------------------------------------------------- |
-| 10   | `DEBT_EQUITY`   | Debt / Equity         | Calculated | `DB_TOTAL_LIAB / DB_EQUITY`                          |
+| 10   | `LIAB_RATIO`    | Liability Ratio       | Calculated | `DB_TOTAL_LIAB / DB_CURRENT_ASSETS`                  |
 | 20   | `GROSS_MARGIN`  | Gross Margin          | Calculated | `DP_GP / DP_REVENUE`                                 |
 | 30   | `NET_MARGIN`    | Net Margin            | Calculated | `DP_NI / DP_REVENUE`                                 |
 | 40   | `ROA`           | Return on Assets      | Calculated | `DP_NI / DB_CURRENT_ASSETS`                          |
 | 50   | `QUICK_RATIO`   | Quick Ratio           | Calculated | `(DB_CASH + DB_AR) / DB_AP`                          |
-| 60   | `CHECK_ID`      | Identity tie-out      | Calculated | `DB_CURRENT_ASSETS - DB_TOTAL_LIAB - DB_EQUITY`      |
+| 60   | `CHECK_ID`      | Identity tie-out      | Calculated | `DB_CURRENT_ASSETS - DB_TOTAL_LIAB - DB_NET_ASSETS`  |
 
 **Resolution of every token**
 
 | Token                   | Resolved against                                           |
 | ----------------------- | ---------------------------------------------------------- |
 | `DB_TOTAL_LIAB`         | Mini Balance Sheet definition (`DB`), Line Code `TOTAL_LIAB`. |
-| `DB_EQUITY`             | `DB.EQUITY`.                                               |
+| `DB_NET_ASSETS`         | `DB.NET_ASSETS`.                                           |
 | `DP_GP`, `DP_REVENUE`   | Mini P&L definition (`DP`).                                |
 | `DP_NI`                 | `DP.NI` = `70,000`.                                        |
 | `DB_CURRENT_ASSETS`     | `DB.CURRENT_ASSETS` = `180,000`.                           |
@@ -585,7 +579,7 @@ Decimal Places  : 2        ← ratios are fractional; show 2 decimals
 
 | Line Code       | Computation                                    | Value (CY) |
 | --------------- | ---------------------------------------------- | ---------- |
-| `DEBT_EQUITY`   | `88,000 / 92,000`                              | `0.96`     |
+| `LIAB_RATIO`    | `88,000 / 180,000`                             | `0.49`     |
 | `GROSS_MARGIN`  | `150,000 / 250,000`                            | `0.60`     |
 | `NET_MARGIN`    | `70,000 / 250,000`                             | `0.28`     |
 | `ROA`           | `70,000 / 180,000`                             | `0.39`     |
@@ -598,7 +592,7 @@ Each formula is evaluated twice (once per period dictionary), so every ratio lin
 
 | Line Code      | `{{..._CY}}` (April 2026) | `{{..._PY}}` (April 2025) |
 | -------------- | ------------------------- | ------------------------- |
-| `DEBT_EQUITY`  | `0.96`                    | *(prior-year BS totals)*  |
+| `LIAB_RATIO`   | `0.49`                    | *(prior-year BS totals)*  |
 | `GROSS_MARGIN` | `0.60`                    | *(prior-year PL totals)*  |
 | `NET_MARGIN`   | `0.28`                    | ″                         |
 | `ROA`          | `0.39`                    | ″                         |
@@ -707,4 +701,4 @@ Validation that is **not** enforced at save (but will bite at generation time):
 
 ## Next Step
 
-Proceed to [Financial Report Generation](03_FinancialReport_Generation.md) or [Presentation Generation](05_Presentation_Generation.md) and link this definition to produce output.
+Proceed to [Financial Report Generation](../02-generation/FinancialReport_Generation.md) or [MBR Report Generation](../02-generation/MBRReport_Generation.md) and link this definition to produce output.

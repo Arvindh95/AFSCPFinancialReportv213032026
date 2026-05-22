@@ -48,7 +48,7 @@ documents or PowerPoint slides.
 - Multi-definition reports with cross-definition formula references
 - Current Year (CY), Previous Year (PY), and Previous Month (PM) comparisons
 - Configurable rounding (Units / Thousands / Millions) with 0–2 decimal places
-- Sign flipping for liability/income/equity accounts
+- Sign flipping for liability/income accounts
 - Multiple balance types: Ending, Beginning, Debit, Credit, Movement, Period-specific
 - Dimension-level filtering: Subaccount, Branch, Organization, Ledger per line item
 - Generic Inquiry data sources with aggregation, multi-row expansion, and calculated columns
@@ -126,7 +126,7 @@ and controls how values are presented.
 |-------------------|-------------|
 | Definition Code   | Unique identifier for this definition (e.g., "BALANCE_SHEET"). Locked after first save. |
 | Prefix            | Short alphanumeric code (2–10 chars, e.g., "BS", "PL", "CF"). Used to namespace placeholders in templates. Locked after first save. Must be unique across all definitions. |
-| Report Type       | Classification: Balance Sheet, Profit & Loss, Cash Flow, Changes in Equity, or Custom |
+| Report Type       | Classification: Balance Sheet, Profit & Loss, Cash Flow, or Custom |
 | Description       | Free-text description |
 | Active            | Whether this definition is available for selection in reports |
 
@@ -136,7 +136,7 @@ and controls how values are presented.
 |------------------------|-------------|
 | Generic Inquiry Name   | The GI to query for trial balance data (default: "TrialBalance") |
 | Account Column         | GI column containing the account code (default: "Account") |
-| Account Type Column    | GI column containing the account type A/L/E/I/Q (default: "Type") |
+| Account Type Column    | GI column containing the account type A/L/E/I (default: "Type") |
 | Beginning Balance Col  | GI column for beginning balance (default: "BeginningBalance") |
 | Ending Balance Col     | GI column for ending balance (default: "EndingBalance") |
 | Debit Column           | GI column for debit amounts (default: "Debit") |
@@ -163,9 +163,9 @@ Each row in the grid defines one line of the financial report.
 | Line Type          | See Line Types below |
 | Account From       | Start of GL account range (inclusive). Only for Account Range type. |
 | Account To         | End of GL account range (inclusive). Only for Account Range type. |
-| Account Type Filter| Restrict to specific account type: Asset (A), Liability (L), Expense (E), Income (I), Equity (Q), or All Types |
+| Account Type Filter| Restrict to specific account type: Asset (A), Liability (L), Expense (E), Income (I), or All Types |
 | Balance Type       | Which balance to use. See Balance Types below. |
-| Sign Rule          | As-Is (keep raw GL sign) or Flip Sign (multiply by -1). Typically flip for Liability, Income, Equity. |
+| Sign Rule          | As-Is (keep raw GL sign) or Flip Sign (multiply by -1). Typically flip for Liability, Income. |
 | Group / Parent Line| For grouping: set this to the Line Code of the SUBTOTAL line that should sum this line |
 | Formula            | Arithmetic expression for Calculated lines. References other Line Codes. |
 | Visible in Report  | If unchecked, the line is still calculated (for use in formulas) but the placeholder resolves to empty |
@@ -204,7 +204,7 @@ Formulas support `+`, `-`, `*`, `/`, and parentheses. Tokens are Line Codes.
 ```
 REVENUE - TOTAL_EXPENSES
 (GROSS_PROFIT - OPERATING_EXPENSES) / REVENUE
-TOTAL_LIABILITIES + TOTAL_EQUITY
+TOTAL_ASSETS - TOTAL_LIABILITIES
 ```
 
 **Cross-definition references (explicit prefix):**
@@ -239,7 +239,6 @@ cross-definition reference. If not, it's resolved within the current definition.
 | 60   | TOTAL_ASSETS    | Subtotal      |             |            |           |             |
 | 70   | PAYABLES        | Account Range | 20100       | 20199      | Flip Sign | TOTAL_LIAB |
 | 80   | TOTAL_LIAB      | Subtotal      |             |            |           |             |
-| 90   | EQUITY          | Account Range | 30100       | 30999      | Flip Sign |             |
 | 100  | NET_ASSETS      | Calculated    |             |            |           |             |
 
 For line 100, set Formula = `TOTAL_ASSETS - TOTAL_LIAB`
@@ -595,7 +594,7 @@ Optional datasets (Cumulative, PM) are skipped when no line items or template pl
 The engine applies automatic sign correction based on account type:
 
 - Asset (A) and Expense (E) accounts: positive debit balance is positive
-- Liability (L), Income (I), and Equity (Q) accounts: positive credit balance is shown as positive
+- Liability (L) and Income (I) accounts: positive credit balance is shown as positive
 
 The Sign Rule field provides additional control:
 - **As-Is:** Keep the sign-corrected value

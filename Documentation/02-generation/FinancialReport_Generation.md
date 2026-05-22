@@ -1,6 +1,6 @@
 # Financial Report Generation — FR101000
 
-This document describes how to **generate a financial report** from the AFS Financial Report screen. Each record on this screen represents a *single run* of the Word-template merge engine: you pick a period, a Word template with `{{PLACEHOLDER}}` tokens, one or more **Report Definitions** (built in [Report Definition Setup](ReportDefinition_Setup.md)), and the engine fills every placeholder with the calculated GL figure and produces a downloadable `.docx`.
+This document describes how to **generate a financial report** from the AFS Financial Report screen. Each record on this screen represents a *single run* of the Word-template merge engine: you pick a period, a Word template with `{{PLACEHOLDER}}` tokens, one or more **Report Definitions** (built in [Report Definition Setup](../01-setup/ReportDefinition_Setup.md)), and the engine fills every placeholder with the calculated GL figure and produces a downloadable `.docx`.
 
 One record = one generated file. Status on the header tells you where the run is in its lifecycle.
 
@@ -8,8 +8,8 @@ One record = one generated file. Status on the header tells you where the run is
 
 ## Prerequisites
 
-- Tenant credentials saved in [Tenant Credentials (FR101001)](01_TenantCredentials_Setup.md). The generator uses them to read GL data through the same tenant the screen is opened in.
-- At least one **Report Definition** created in [AFS Report Definition (FR101002)](ReportDefinition_Setup.md). The definition supplies the placeholders (`{{<Prefix>_<LineCode>_CY|PM|PY}}`) that the template file will reference.
+- Tenant credentials saved in [Tenant Credentials (FR101001)](../01-setup/TenantCredentials_Setup.md). The generator uses them to read GL data through the same tenant the screen is opened in.
+- At least one **Report Definition** created in [AFS Report Definition (FR101002)](../01-setup/ReportDefinition_Setup.md). The definition supplies the placeholders (`{{<Prefix>_<LineCode>_CY}}` and `{{<Prefix>_<LineCode>_PY}}`) that the template file will reference.
 - A Word template (`.docx`) whose filename contains the literal token **`FRTemplate`** (for example `AFS-SalesDemo-Test_FRTemplate.docx`). The loader matches on that substring when resolving which attached file to merge.
 - Fiscal periods open for the **Current Year** you intend to report on. The selector only lists years that exist in `FinPeriod`.
 
@@ -23,7 +23,7 @@ In the top search bar type **Financial Report** and select **AFS Financial Repor
 
 > **Screen ID:** FR101000
 
-![AFS Financial Report landing screen](images/report_generation/reportgen_01_landing.png)
+![AFS Financial Report landing screen](../images/report_generation/reportgen_01_landing.png)
 
 The toolbar at the top carries the standard Acumatica navigation (Back, Save, Cancel, New, Delete, Copy/Paste, First/Prev/Next/Last). Directly underneath are the three **action buttons** wired on this screen:
 
@@ -50,7 +50,7 @@ The header is split into two column groups. The left group identifies the report
 | **Template Name**  | yes      | `BS Annual Report 2024`          | Free-text code identifying this report run, up to 225 chars. Shown in the FR401000 list and in the selector on downstream screens. Not the same thing as the Word filename — this is the *record* name.                           |
 | **Description**    | no       | `Balance Sheet for December 2024`| Free-text label, up to 50 chars.                                                                                                                                                                                                   |
 | **Current Year**   | yes      | `2024`                           | Fiscal year the report runs for. The dropdown is populated from distinct `FinPeriod.FinYear` values, sorted descending.                                                                                                            |
-| **Financial Month**| yes      | `December`                       | Month-of-year (`01`–`12`). Defaults to `12` (December). Drives the single-period Balance Type columns (`PDEBIT`, `PCREDIT`, `PMOVEMENT`) inside the linked definition.                                                             |
+| **Financial Month**| yes      | `December`                       | Month-of-year (`01`–`12`). Defaults to `12` (December). Sets the **period end** for the fiscal-year-to-date window every linked Definition reads (FY start → end of selected month). Same window is used for the `_PY` pass against the prior year. |
 | **Organization**   | no       | `PRODUCTS`                       | Optional filter. Blank = all organizations the tenant can see. Selector reads `Organization.OrganizationCD`.                                                                                                                       |
 | **Branch**         | no       | `PRODWHOLE`                      | Optional filter. Blank = all branches. Selector reads `Branch.BranchCD`.                                                                                                                                                           |
 | **Ledger**         | no       | `ACTUAL`                         | Optional filter. Blank = all ledgers. Selector reads `Ledger.LedgerCD`, description `Ledger.Descr`.                                                                                                                                |
@@ -62,21 +62,22 @@ The header is split into two column groups. The left group identifies the report
 
 Click the magnifier next to **Current Year** to open the selector. It shows every distinct `FinYear` on file (latest first). Double-click a row, or type the year directly into the field and press Tab.
 
-![Current Year selector — 2023 through 2027](images/report_generation/reportgen_02_year_selector.png)
+![Current Year selector — 2023 through 2027](../images/report_generation/reportgen_02_year_selector.png)
 
 ---
 
 ### Step 5 — Pick the Financial Month
 
-**Financial Month** is a fixed dropdown (`January` … `December`). It is the *only* way to tell the engine which single period to treat as "this month" — the period-movement placeholders (`_CY`, `_PM`, `_PY`) pivot around this selection:
+**Financial Month** is a fixed dropdown (`January` … `December`). It defines the **period end** of the fiscal-year-to-date window the engine reads. Every line item in every linked Definition resolves twice — once for `_CY`, once for `_PY` — against this same FY-to-date window:
 
-- `_CY` — the month you pick here, in the selected year.
-- `_PM` — the immediately previous month (previous year if you pick January).
-- `_PY` — the same month in the previous year.
+- `_CY` — fiscal-year-to-date through end of the selected month, in the **Current Year**.
+- `_PY` — fiscal-year-to-date through end of the same month, in the **previous fiscal year**.
 
-Default is `December` (month `12`) so annual Balance Sheets need no change.
+There is no single-period (month-only) placeholder. If a month-only delta is needed, compute it inside the Word template (`{{PFX_X_CY}} - {{PFX_X_PY}}`) — formulas inside a Definition cannot mix periods.
 
-![Financial Month dropdown open](images/report_generation/reportgen_03_month_dropdown.png)
+Default is `December` (month `12`) so annual statements need no change.
+
+![Financial Month dropdown open](../images/report_generation/reportgen_03_month_dropdown.png)
 
 ---
 
@@ -92,15 +93,15 @@ The right-hand column group narrows *which GL rows* the linked Report Definition
 
 > The three filters are AND-combined with any per-line filters you set inside the Report Definition (*Organization Filter*, *Branch Filter*, *Ledger Filter* on each line item). The header values act as a hard upper bound; per-line filters may further narrow, never widen.
 
-![Organization selector](images/report_generation/reportgen_04_org_selector.png)
+![Organization selector](../images/report_generation/reportgen_04_org_selector.png)
 
-![Branch selector](images/report_generation/reportgen_05_branch_selector.png)
+![Branch selector](../images/report_generation/reportgen_05_branch_selector.png)
 
-![Ledger selector](images/report_generation/reportgen_06_ledger_selector.png)
+![Ledger selector](../images/report_generation/reportgen_06_ledger_selector.png)
 
 Once all header fields are populated the form looks like the below. Save (`Ctrl+S`) before attaching files or adding definitions — the Report Definitions grid and the Files panel both need a saved parent record.
 
-![Header fully filled](images/report_generation/reportgen_07_header_filled.png)
+![Header fully filled](../images/report_generation/reportgen_07_header_filled.png)
 
 ---
 
@@ -108,11 +109,11 @@ Once all header fields are populated the form looks like the below. Save (`Ctrl+
 
 Click the **Files** button (paperclip icon, top-right). An empty Files dialog opens.
 
-![Empty Files panel](images/report_generation/reportgen_08_files_panel.png)
+![Empty Files panel](../images/report_generation/reportgen_08_files_panel.png)
 
 Click **Browse** (or drag-drop), pick your `.docx`, and upload. **The filename must contain the substring `FRTemplate`** — the generator scans the attached files on this record and picks the first one whose name matches. Example: `DemoTemplate_FRTemplate.docx` or `BS2024_FRTemplate.docx`.
 
-![Files panel populated with the FRTemplate docx](images/report_generation/reportgen_09_files_populated.png)
+![Files panel populated with the FRTemplate docx](../images/report_generation/reportgen_09_files_populated.png)
 
 The Files button badge shows the attachment count (`Files(1)`). You can upload additional supporting files — only the one matching `FRTemplate` is merged; others are ignored.
 
@@ -124,11 +125,11 @@ Switch to the **REPORT DEFINITIONS** tab below the header. This child grid is wh
 
 Click **+** on the grid toolbar to add a blank row.
 
-![Empty grid row added — Add Row action highlighted](images/report_generation/reportgen_10_grid_row_added.png)
+![Empty grid row added — Add Row action highlighted](../images/report_generation/reportgen_10_grid_row_added.png)
 
 With the row focused, press **F3** (or click the magnifier) in the **Definition** cell. The selector opens and lists every definition marked *Active* on FR101002, showing `Definition Code`, `Prefix`, `Description`, and `Report Type`.
 
-![Definition selector — GENERIC (GC) and MON-REP (MR)](images/report_generation/reportgen_11_definition_selector.png)
+![Definition selector — GENERIC (GC) and MON-REP (MR)](../images/report_generation/reportgen_11_definition_selector.png)
 
 Pick the definition you want. The **Prefix** column on the grid fills automatically from the definition record and is read-only here — it is the same prefix that appears on the placeholders emitted by that definition.
 
@@ -149,7 +150,7 @@ The merge engine concatenates the placeholder dictionaries from every linked def
 
 ### Step 9 — Save
 
-Press `Ctrl+S`. The engine runs minimal validation: **Template Name**, **Current Year**, and **Financial Month** must be set, and **at least one** Definition must be linked (or the legacy field populated on older records).
+Press `Ctrl+S`. The graph does **not** validate header completeness at save time — a record with blank Template Name / Current Year / no linked Definition will persist. Validation is deferred to **Generate Report**, which throws if Template Name is missing, no Definition is linked, or no `*FRTemplate*.docx` file is attached. Fill the header before clicking Generate to avoid an immediate failure.
 
 ---
 
@@ -165,15 +166,17 @@ Status immediately transitions to `In Progress`. The job runs under `PXLongOpera
 
 ### Download Report
 
-Returns the last successfully generated `.docx` attached to this record. Disabled until Status = `Ready to Download`.
+Returns the last successfully generated `.docx` attached to this record (the file referenced by `GeneratedFileID`). The button is hard-disabled only while a generation is **In Progress**; in all other states it is clickable but throws *"No generated file is available for download."* if no file has ever been produced (or it was just cleared by Reset Status). Effectively this means: only useful when Status = **Ready to Download**.
 
 ### Reset Status
 
-Clears a stuck or failed run so the record can be re-queued. The button opens a confirmation dialog:
+Clears a stuck or failed run so the record can be re-queued. The button opens a confirmation dialog showing the current status:
 
-![Reset Status confirmation dialog](images/report_generation/reportgen_17_reset_dialog.png)
+![Reset Status confirmation dialog](../images/report_generation/reportgen_17_reset_dialog.png)
 
-- **Yes** — Status moves to `Pending` (`File not Generated`). The previously generated `.docx`, if any, is retained on the record until the next successful run overwrites it.
+> Dialog message — `Reset this report from '<Current Status>' to 'Pending'? This will allow regeneration.`
+
+- **Yes** — Status moves to `Pending` (`File not Generated`) **and `GeneratedFileID` is cleared**. The previously generated `.docx` is detached from the record so it cannot be downloaded; the next successful run produces a fresh file. Files panel attachments are not affected.
 - **No** — Status is unchanged.
 
 Use Reset after an `In Progress` run exceeds its timeout with no output (rare — typically only happens if the web role recycles mid-run), or after a `Failed` run once you have fixed the underlying cause.
@@ -186,10 +189,12 @@ Status is a one-character field on the DAC (`FLRTFinancialReport.Status`) render
 
 | DB value | UI label              | Meaning                                                                                                 |
 | -------- | --------------------- | ------------------------------------------------------------------------------------------------------- |
-| `P`      | **File not Generated**| Initial state. No `.docx` attached yet. **Generate Report** is allowed; **Download Report** is disabled.|
-| `IP`     | **In Progress**       | `PXLongOperation` job is running. Polling badge updates on the FR401000 list.                           |
+| `N`      | **File not Generated**| Initial state. No `.docx` attached yet. **Generate Report** is allowed; **Download Report** is disabled.|
+| `P`      | **In Progress**       | `PXLongOperation` job is running. While in this state every header field plus **Generate Report** and **Download Report** is disabled — only **Reset Status** is clickable. Polling badge updates on the FR401000 list. |
 | `C`      | **Ready to Download** | Job finished; merged `.docx` is stored on the record. **Download Report** now returns the file.         |
 | `F`      | **Failed**            | Job threw — typically a missing placeholder in a definition, a malformed formula, or a template parse error. Check the trace log, fix the definition or template, then **Reset Status** → **Generate Report**. |
+
+> Constants live in [`Helper/ReportStatus`](../AFSCPFinancialReportv213032026/Helper/Constants.cs) — note the DB code for *In Progress* is `P`, not `IP`. The `N`/`P`/`C`/`F` codes are what land in the `Status` column on the database; the UI labels above are the user-facing strings.
 
 Transitions:
 
@@ -208,7 +213,7 @@ A complete walkthrough of a typical run. Input artefacts: a Word template with B
 
 Open the record in edit mode. Header looks like the below:
 
-![Loaded record — BS Annual Report 2024](images/report_generation/reportgen_13_record_loaded.png)
+![Loaded record — BS Annual Report 2024](../images/report_generation/reportgen_13_record_loaded.png)
 
 | Field            | Value                           |
 | ---------------- | ------------------------------- |
@@ -225,7 +230,7 @@ Open the record in edit mode. Header looks like the below:
 
 In the **Report Definitions** grid, add a row and pick **GENERIC** (Prefix `GC`):
 
-![GENERIC definition linked in grid](images/report_generation/reportgen_14_definition_linked.png)
+![GENERIC definition linked in grid](../images/report_generation/reportgen_14_definition_linked.png)
 
 ### 3 — Attach the template
 
@@ -235,9 +240,9 @@ Open the Files panel and upload `BS2024_FRTemplate.docx` (or similarly named fil
 
 Click **Generate Report**. Status flips to `In Progress`. Within a minute or two (depending on GL volume) Status lands on `Ready to Download`:
 
-![Ready to Download — AFS-SalesDemo-Test example with 2 linked definitions](images/report_generation/reportgen_15_ready_to_download.png)
+![Ready to Download — AFS-SalesDemo-Test example with 2 linked definitions](../images/report_generation/reportgen_15_ready_to_download.png)
 
-Click **Download Report** to pull the merged `.docx`. Every `{{GC_*_CY}}`, `{{GC_*_PM}}`, `{{GC_*_PY}}` placeholder in the template is now replaced with its calculated figure, rounded per the definition's Rounding Level / Decimal Places settings.
+Click **Download Report** to pull the merged `.docx`. Every `{{GC_*_CY}}` and `{{GC_*_PY}}` placeholder in the template is now replaced with its calculated figure, rounded per the definition's Rounding Level / Decimal Places settings.
 
 ---
 
@@ -245,11 +250,11 @@ Click **Download Report** to pull the merged `.docx`. Every `{{GC_*_CY}}`, `{{GC
 
 The example below shows a record that threw during generation.
 
-![Failed record — AFS-SalesDemo-Test December 2025](images/report_generation/reportgen_16_failed_record.png)
+![Failed record — AFS-SalesDemo-Test December 2025](../images/report_generation/reportgen_16_failed_record.png)
 
 To recover:
 
-1. Open the record. Read the trace log (top-right trace icon) to identify the error — typical causes are a `{{PREFIX_LINECODE_CY}}` placeholder in the template with no matching Line Code on any linked definition, or a CALCULATED formula referencing an unknown Line Code.
+1. Open the record. Read the trace log (top-right trace icon) to identify the error — typical causes are a `{{PREFIX_LINECODE_CY}}` (or `_PY`) placeholder in the template with no matching Line Code on any linked definition, or a CALCULATED formula referencing an unknown Line Code.
 2. Fix the root cause in either the template (remove the dangling placeholder or correct its spelling) or the definition (add the missing Line Code / fix the formula).
 3. Click **Reset Status** and confirm **Yes** in the dialog. Status returns to `File not Generated`.
 4. Click **Generate Report** to re-run.
@@ -260,7 +265,7 @@ To recover:
 
 The companion list screen **AFS-Financial-Report (FR401000)** shows every record on the system at a glance, grouped by status column. Click any `Report ID` link to jump to the record on FR101000.
 
-![FR401000 records list — all four lifecycle states visible](images/report_generation/reportgen_12_records_list.png)
+![FR401000 records list — all four lifecycle states visible](../images/report_generation/reportgen_12_records_list.png)
 
 The column set mirrors the FR101000 header: *Template Name*, *Description*, *Current Year*, *Financial Month*, *Status*, *Organization*, *Branch*. Use the standard Acumatica toolbar filters and column sort to narrow down when running many reports per period.
 
@@ -268,4 +273,4 @@ The column set mirrors the FR101000 header: *Template Name*, *Description*, *Cur
 
 ## Next step
 
-Once the Word report is generating cleanly, proceed to [Presentation Generation (FR301001)](05_Presentation_Generation.md) to roll up one or more generated reports into an executive-summary PowerPoint. The placeholder catalogue produced by every linked definition is documented in [Placeholder Reference](06_Placeholder_Reference.md).
+Once the Word report is generating cleanly, proceed to [MBR Report Generation (FR101003)](MBRReport_Generation.md) to roll up one or more generated reports into an executive-summary PowerPoint. The placeholder catalogue produced by every linked definition is documented in [Placeholder Reference](../03-reference/Placeholder_Reference.md).
