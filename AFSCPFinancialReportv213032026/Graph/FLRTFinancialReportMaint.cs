@@ -1,5 +1,6 @@
 ﻿using System;
 using PX.Data;
+using PX.Data.BQL;
 using PX.Data.BQL.Fluent;
 using System.Collections.Generic;
 using System.IO;
@@ -147,6 +148,15 @@ namespace FinancialReport
             if (selectedRecord.ReportID == null) throw new PXException(Messages.NoReportSelected);
             if (selectedRecord.Status == ReportStatus.InProgress) throw new PXException(Messages.FileGenerationInProgress);
             if (selectedRecord.Noteid == null) throw new PXException(Messages.TemplateHasNoFiles);
+
+            // Without at least one linked definition the engine is skipped entirely and
+            // WordTemplateService replaces every unknown placeholder with "0" — the user
+            // gets a valid-looking .docx full of zeros. Fail loudly instead.
+            int linkedDefinitionCount = SelectFrom<FLRTReportDefinitionLink>
+                .Where<FLRTReportDefinitionLink.reportID.IsEqual<@P.AsInt>>
+                .View.Select(this, selectedRecord.ReportID).Count;
+            if (linkedDefinitionCount == 0)
+                throw new PXException(Messages.NoDefinitionsLinkedToReport);
 
             int? companyID = GetCompanyIDFromDB(selectedRecord.ReportID);
             string tenantName = MapCompanyIDToTenantName(companyID);

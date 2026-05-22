@@ -45,6 +45,11 @@ namespace FinancialReport.Services
             _columnMapping = columnMapping ?? new GIColumnMapping();
         }
 
+        // OData escapes a literal ' inside a single-quoted string by doubling it.
+        // Without this, any user-entered value containing ' (e.g. branch "O'Brien")
+        // breaks the entire filter with a 500 syntax error.
+        private static string OEsc(string s) => s == null ? "" : s.Replace("'", "''");
+
         // --------------------------------------------------------
         // 1) FetchAllApiData (with URL Fallback Logic)
         // --------------------------------------------------------
@@ -60,7 +65,7 @@ namespace FinancialReport.Services
         {
             string accessToken = await _authService.AuthenticateAndGetTokenAsync();
             string dimensionFilter = BuildDimensionFilter(branch, organization);
-            string filter = $"{_columnMapping.PeriodColumn} eq '{period}' and {dimensionFilter}";
+            string filter = $"{_columnMapping.PeriodColumn} eq '{OEsc(period)}' and {dimensionFilter}";
 
             var accountData = new Dictionary<string, FinancialPeriodData>();
             var detailRows  = new List<FinancialPeriodData>();
@@ -138,40 +143,61 @@ namespace FinancialReport.Services
         // --------------------------------------------------------
         // 2) FetchRangeApiData
         // --------------------------------------------------------
-        public FinancialApiData FetchRangeApiData(string branch, string organization, string ledger, string fromPeriod, string toPeriod, CancellationToken cancellationToken = default)
+        public FinancialApiData FetchRangeApiData(string branch, string organization, string ledger, string fromPeriod, string toPeriod, bool includeDetail = false, CancellationToken cancellationToken = default)
         {
             string accessToken = _authService.AuthenticateAndGetToken();
             string dimensionFilter = BuildDimensionFilter(branch, organization);
-            string baseFilter = $"{_columnMapping.PeriodColumn} ge '{fromPeriod}' and {_columnMapping.PeriodColumn} le '{toPeriod}' and {dimensionFilter}";
+            string baseFilter = $"{_columnMapping.PeriodColumn} ge '{OEsc(fromPeriod)}' and {_columnMapping.PeriodColumn} le '{OEsc(toPeriod)}' and {dimensionFilter}";
 
             var cumulativeDict = new Dictionary<string, FinancialPeriodData>();
+            var detailRows = new List<FinancialPeriodData>();
 
             Action<JToken> rowConsumer = (item) =>
             {
                 string accountId = item[_columnMapping.AccountColumn]?.ToString();
-                decimal debit = item[_columnMapping.DebitColumn]?.ToObject<decimal>() ?? 0;
-                decimal credit = item[_columnMapping.CreditColumn]?.ToObject<decimal>() ?? 0;
-                decimal endingBalance = item[_columnMapping.EndingBalCol]?.ToObject<decimal>() ?? 0;
                 if (string.IsNullOrEmpty(accountId)) return;
+
+                string subaccount  = item[_columnMapping.SubaccountColumn]?.ToString()?.Trim()    ?? string.Empty;
+                string branchId    = item[_columnMapping.BranchColumn]?.ToString()?.Trim()        ?? string.Empty;
+                string orgId       = item[_columnMapping.OrganizationColumn]?.ToString()?.Trim()  ?? string.Empty;
+                string ledgerId    = item[_columnMapping.LedgerColumn]?.ToString()?.Trim()        ?? string.Empty;
+                string accountType = item[_columnMapping.TypeColumn]?.ToString() ?? string.Empty;
+                decimal debit         = item[_columnMapping.DebitColumn]?.ToObject<decimal>()    ?? 0;
+                decimal credit        = item[_columnMapping.CreditColumn]?.ToObject<decimal>()   ?? 0;
+                decimal endingBalance = item[_columnMapping.EndingBalCol]?.ToObject<decimal>()   ?? 0;
 
                 if (!cumulativeDict.TryGetValue(accountId!, out var cumEntry))
                 {
-                    cumEntry = new FinancialPeriodData();
+                    // AccountType captured here so sign-flip in ApplyAccountTypeSign works
+                    // for Liability/Income lines using YTD Debit/Credit/Movement.
+                    cumEntry = new FinancialPeriodData { Account = accountId, AccountType = accountType };
                     cumulativeDict[accountId!] = cumEntry;
                 }
-                cumEntry.Debit += debit;
-                cumEntry.Credit += credit;
+                cumEntry.Debit         += debit;
+                cumEntry.Credit        += credit;
                 cumEntry.EndingBalance += endingBalance;
+
+                if (includeDetail)
+                {
+                    // Each row is one (account, sub, branch, org, ledger, period) tuple;
+                    // engine aggregates these client-side when a line has dimension filters.
+                    detailRows.Add(new FinancialPeriodData
+                    {
+                        Account = accountId, Subaccount = subaccount, AccountType = accountType,
+                        BranchID = branchId, OrganizationID = orgId, Ledger = ledgerId,
+                        Debit = debit, Credit = credit, EndingBalance = endingBalance
+                    });
+                }
             };
 
-            Action resetConsumer = () => { cumulativeDict.Clear(); };
+            Action resetConsumer = () => { cumulativeDict.Clear(); detailRows.Clear(); };
 
             int count = ExecuteFetchStreamWithFallbackAsync(_httpClient, baseFilter, ledger, accessToken, rowConsumer, resetConsumer, cancellationToken).Result;
 
             if (count < 0)
                 throw new PXException(Messages.FailedToFetchOData);
 
-            var apiData = new FinancialApiData();
+            var apiData = new FinancialApiData { DetailRows = detailRows };
             foreach (var kvp in cumulativeDict)
                 apiData.AccountData[kvp.Key] = kvp.Value;
 
@@ -184,7 +210,7 @@ namespace FinancialReport.Services
         public FinancialApiData FetchCompositeKeyData(string branch, string organization, string ledger, string period, CancellationToken cancellationToken = default)
         {
             string accessToken = _authService.AuthenticateAndGetToken();
-            string baseFilter = $"{_columnMapping.PeriodColumn} eq '{period}' and 1 eq 1";
+            string baseFilter = $"{_columnMapping.PeriodColumn} eq '{OEsc(period)}' and 1 eq 1";
 
             var compositeData = new Dictionary<string, FinancialPeriodData>();
 
@@ -241,8 +267,8 @@ namespace FinancialReport.Services
             }
 
             string accessToken = _authService.AuthenticateAndGetToken();
-            string baseFilter = $"{_columnMapping.PeriodColumn} eq '{period}' and {_columnMapping.BranchColumn} eq '{branch}' and {_columnMapping.OrganizationColumn} eq '{organization}' and " +
-                               $"{_columnMapping.AccountColumn} eq '{account}' and {_columnMapping.SubaccountColumn} eq '{subaccount}'";
+            string baseFilter = $"{_columnMapping.PeriodColumn} eq '{OEsc(period)}' and {_columnMapping.BranchColumn} eq '{OEsc(branch)}' and {_columnMapping.OrganizationColumn} eq '{OEsc(organization)}' and " +
+                               $"{_columnMapping.AccountColumn} eq '{OEsc(account)}' and {_columnMapping.SubaccountColumn} eq '{OEsc(subaccount)}'";
 
             var results = ExecuteFetchWithFallback(_httpClient, baseFilter, ledger, accessToken, cancellationToken);
 
@@ -275,24 +301,19 @@ namespace FinancialReport.Services
             string legacyUrlBase = $"{_baseUrl}/t/{_tenantName}/api/odata/gi/{giName}";
             string selectColumns = _columnMapping.BuildSelectColumns();
 
-            // Attempt 1: Modern URL with Ledger (normal path — no trace on success)
+            // The ledger filter is preserved across both attempts. A previous version dropped
+            // the ledger filter on retry, which silently blended ACTUAL with BUDGET/REPORT
+            // ledgers when the with-ledger fetch hit a transient error. Removed — if both
+            // URL variants fail with the user-selected ledger, surface the failure.
             string filterWithLedger = AppendLedgerFilter(baseFilter, ledger);
+
+            // Attempt 1: Modern URL with Ledger
             var results = await PaginatedFetchAsync(client, modernUrlBase, filterWithLedger, selectColumns, accessToken, cancellationToken);
             if (results != null) return results;
 
-            // Attempt 2: Modern URL without Ledger (Attempt 1 with ledger filter failed)
-            PXTrace.WriteWarning($"Fallback 2: Modern URL without Ledger. URL: {modernUrlBase}, Filter: {baseFilter}");
-            results = await PaginatedFetchAsync(client, modernUrlBase, baseFilter, selectColumns, accessToken, cancellationToken);
-            if (results != null) return results;
-
-            // Attempt 3: Legacy URL with Ledger
-            PXTrace.WriteWarning($"Attempt 2 failed. Retrying with Legacy URL with Ledger. URL: {legacyUrlBase}, Filter: {filterWithLedger}");
+            // Attempt 2: Legacy URL with Ledger (URL-format fallback only)
+            PXTrace.WriteWarning($"Modern URL failed, retrying Legacy URL. Filter: {filterWithLedger}");
             results = await PaginatedFetchAsync(client, legacyUrlBase, filterWithLedger, selectColumns, accessToken, cancellationToken);
-            if (results != null) return results;
-
-            // Attempt 4: Legacy URL without Ledger
-            PXTrace.WriteWarning($"Attempt 3 failed. Retrying with Legacy URL without Ledger. URL: {legacyUrlBase}, Filter: {baseFilter}");
-            results = await PaginatedFetchAsync(client, legacyUrlBase, baseFilter, selectColumns, accessToken, cancellationToken);
             if (results != null) return results;
 
             PXTrace.WriteError("All fetch attempts failed.");
@@ -509,6 +530,8 @@ namespace FinancialReport.Services
             string legacyUrlBase = $"{_baseUrl}/t/{_tenantName}/api/odata/gi/{giName}";
             string selectColumns = _columnMapping.BuildSelectColumns();
 
+            // See ExecuteFetchWithFallbackAsync above — ledger filter is preserved across
+            // retries to avoid silently blending ledgers on transient failures.
             string filterWithLedger = AppendLedgerFilter(baseFilter, ledger);
 
             // Attempt 1: Modern URL with Ledger
@@ -516,22 +539,10 @@ namespace FinancialReport.Services
             int count = await PaginatedFetchStreamAsync(client, modernUrlBase, filterWithLedger, selectColumns, accessToken, rowConsumer, cancellationToken);
             if (count >= 0) return count;
 
-            // Attempt 2: Modern URL without Ledger
-            PXTrace.WriteWarning($"Fallback 2: Modern URL without Ledger. URL: {modernUrlBase}, Filter: {baseFilter}");
-            resetConsumer();
-            count = await PaginatedFetchStreamAsync(client, modernUrlBase, baseFilter, selectColumns, accessToken, rowConsumer, cancellationToken);
-            if (count >= 0) return count;
-
-            // Attempt 3: Legacy URL with Ledger
-            PXTrace.WriteWarning($"Attempt 2 failed. Retrying with Legacy URL with Ledger. URL: {legacyUrlBase}, Filter: {filterWithLedger}");
+            // Attempt 2: Legacy URL with Ledger (URL-format fallback only)
+            PXTrace.WriteWarning($"Modern URL failed, retrying Legacy URL. Filter: {filterWithLedger}");
             resetConsumer();
             count = await PaginatedFetchStreamAsync(client, legacyUrlBase, filterWithLedger, selectColumns, accessToken, rowConsumer, cancellationToken);
-            if (count >= 0) return count;
-
-            // Attempt 4: Legacy URL without Ledger
-            PXTrace.WriteWarning($"Attempt 3 failed. Retrying with Legacy URL without Ledger. URL: {legacyUrlBase}, Filter: {baseFilter}");
-            resetConsumer();
-            count = await PaginatedFetchStreamAsync(client, legacyUrlBase, baseFilter, selectColumns, accessToken, rowConsumer, cancellationToken);
             if (count >= 0) return count;
 
             PXTrace.WriteError("All streaming fetch attempts failed.");
@@ -548,15 +559,15 @@ namespace FinancialReport.Services
             if (!string.IsNullOrEmpty(branch) && !string.IsNullOrEmpty(organization))
             {
                 // Return a filter that requires BOTH match
-                return $"{_columnMapping.BranchColumn} eq '{branch}' and {_columnMapping.OrganizationColumn} eq '{organization}'";
+                return $"{_columnMapping.BranchColumn} eq '{OEsc(branch)}' and {_columnMapping.OrganizationColumn} eq '{OEsc(organization)}'";
             }
             else if (!string.IsNullOrEmpty(branch))
             {
-                return $"{_columnMapping.BranchColumn} eq '{branch}'";
+                return $"{_columnMapping.BranchColumn} eq '{OEsc(branch)}'";
             }
             else if (!string.IsNullOrEmpty(organization))
             {
-                return $"{_columnMapping.OrganizationColumn} eq '{organization}'";
+                return $"{_columnMapping.OrganizationColumn} eq '{OEsc(organization)}'";
             }
             else
             {
@@ -568,8 +579,47 @@ namespace FinancialReport.Services
         private string AppendLedgerFilter(string baseFilter, string ledger)
         {
             return !string.IsNullOrEmpty(ledger)
-                ? $"{baseFilter} and {_columnMapping.LedgerColumn} eq '{ledger}'"
+                ? $"{baseFilter} and {_columnMapping.LedgerColumn} eq '{OEsc(ledger)}'"
                 : baseFilter;
+        }
+
+        /// <summary>
+        /// Probes the configured GI to confirm it exists and is reachable before the
+        /// parallel fetch tasks fan out. Throws a clear configuration error early instead
+        /// of letting every fetch task fail with the generic FailedToFetchOData.
+        /// </summary>
+        public void ValidateGIExists(CancellationToken cancellationToken = default)
+        {
+            string giName = _columnMapping.GIName;
+            string accessToken = _authService.AuthenticateAndGetToken();
+            string modernUrl = $"{_baseUrl}/odata/{_tenantName}/{giName}?$top=1&$select={_columnMapping.AccountColumn}";
+            string legacyUrl = $"{_baseUrl}/t/{_tenantName}/api/odata/gi/{giName}?$top=1&$select={_columnMapping.AccountColumn}";
+
+            foreach (var url in new[] { modernUrl, legacyUrl })
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                try
+                {
+                    using (var request = new HttpRequestMessage(HttpMethod.Get, url))
+                    {
+                        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+                        var response = _httpClient.SendAsync(request, cancellationToken).GetAwaiter().GetResult();
+                        if (response.IsSuccessStatusCode) return; // GI reachable on this URL form
+                        if ((int)response.StatusCode != 404)
+                        {
+                            // Not a "missing GI" — surface as generic OData failure
+                            PXTrace.WriteWarning($"GI probe {url} returned {(int)response.StatusCode}.");
+                        }
+                    }
+                }
+                catch (OperationCanceledException) { throw; }
+                catch (Exception ex)
+                {
+                    PXTrace.WriteWarning($"GI probe {url} threw: {ex.Message}");
+                }
+            }
+
+            throw new PXException(Messages.GIDataSourceNotFound, giName, _tenantName);
         }
 
         /// <summary>

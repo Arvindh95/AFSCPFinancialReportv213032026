@@ -170,8 +170,8 @@ namespace FinancialReport.Services
             var taskCY       = Task.Run(() => dataService.FetchAllApiData(record.Branch, record.Organization, record.Ledger, ctx.SelectedPeriod,      false, cancellationToken), cancellationToken);
             var taskPY       = Task.Run(() => dataService.FetchAllApiData(record.Branch, record.Organization, record.Ledger, ctx.PrevYearPeriod,      false, cancellationToken), cancellationToken);
             var taskPrior    = Task.Run(() => dataService.FetchAllApiData(record.Branch, record.Organization, record.Ledger, ctx.PrevYearPriorPeriod, false, cancellationToken), cancellationToken);
-            var taskRangeCY  = Task.Run(() => dataService.FetchRangeApiData(record.Branch, record.Organization, record.Ledger, ctx.CyFyStartPeriod, ctx.SelectedPeriod, cancellationToken), cancellationToken);
-            var taskRangePY  = Task.Run(() => dataService.FetchRangeApiData(record.Branch, record.Organization, record.Ledger, ctx.PyFyStartPeriod, ctx.PrevYearPeriod, cancellationToken), cancellationToken);
+            var taskRangeCY  = Task.Run(() => dataService.FetchRangeApiData(record.Branch, record.Organization, record.Ledger, ctx.CyFyStartPeriod, ctx.SelectedPeriod, cancellationToken: cancellationToken), cancellationToken);
+            var taskRangePY  = Task.Run(() => dataService.FetchRangeApiData(record.Branch, record.Organization, record.Ledger, ctx.PyFyStartPeriod, ctx.PrevYearPeriod, cancellationToken: cancellationToken), cancellationToken);
 
             Task.WhenAll(taskCY, taskPY, taskPrior, taskRangeCY, taskRangePY).Wait(cancellationToken);
 
@@ -291,8 +291,8 @@ namespace FinancialReport.Services
             var taskCY       = Task.Run(() => dataService.FetchAllApiData(record.Branch, record.Organization, record.Ledger, ctx.SelectedPeriod,      false, cancellationToken), cancellationToken);
             var taskPY       = Task.Run(() => dataService.FetchAllApiData(record.Branch, record.Organization, record.Ledger, ctx.PrevYearPeriod,      false, cancellationToken), cancellationToken);
             var taskPrior    = Task.Run(() => dataService.FetchAllApiData(record.Branch, record.Organization, record.Ledger, ctx.PrevYearPriorPeriod, false, cancellationToken), cancellationToken);
-            var taskRangeCY  = Task.Run(() => dataService.FetchRangeApiData(record.Branch, record.Organization, record.Ledger, ctx.CyFyStartPeriod, ctx.SelectedPeriod, cancellationToken), cancellationToken);
-            var taskRangePY  = Task.Run(() => dataService.FetchRangeApiData(record.Branch, record.Organization, record.Ledger, ctx.PyFyStartPeriod, ctx.PrevYearPeriod, cancellationToken), cancellationToken);
+            var taskRangeCY  = Task.Run(() => dataService.FetchRangeApiData(record.Branch, record.Organization, record.Ledger, ctx.CyFyStartPeriod, ctx.SelectedPeriod, cancellationToken: cancellationToken), cancellationToken);
+            var taskRangePY  = Task.Run(() => dataService.FetchRangeApiData(record.Branch, record.Organization, record.Ledger, ctx.PyFyStartPeriod, ctx.PrevYearPeriod, cancellationToken: cancellationToken), cancellationToken);
 
             Task.WhenAll(taskCY, taskPY, taskPrior, taskRangeCY, taskRangePY).Wait(cancellationToken);
 

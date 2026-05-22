@@ -27,6 +27,8 @@ Common errors and how to fix them. Error message text matches `Helper/Messages.c
 |--------------------------------------------------------------------------------------------|--------------------------------------------------------------------|-----|
 | `Please select a template to generate the report.`                                          | Generate Report clicked with no record loaded.                      | Open or insert a record first. |
 | `No report selected or report ID is missing.`                                               | The header didn't save before Generate Report was clicked.          | Save the record first (`Ctrl+S`), then Generate. |
+| `No report definitions linked. Please add at least one definition on the Report Definitions tab before generating a report.` | Generate Report clicked with zero rows on the **Report Definitions** child grid. Previously this produced a `.docx` with every numeric placeholder silently filled as `0`. | Add at least one definition link on the **Report Definitions** tab, then re-run Generate. |
+| `Generic Inquiry '{0}' was not found in tenant '{1}'. Check the GI Name on the linked Report Definition...` | The **GI Name** on a linked Report Definition does not match any published GI in the tenant (typo, unpublished, or wrong tenant). Probe runs before parallel fetches so the user sees the GI name, not the generic OData failure. | On FR101002, set **GI Name** to the exact published GI name (e.g. `AFS-Trial-Balance` — match dashes and case as returned by Acumatica's OData service document). |
 | `The selected template does not have any attached files.`                                   | Generate Report clicked but no `.docx` is attached via the Files panel. | Open Files (paperclip icon), upload a `.docx` whose filename contains `FRTemplate`. |
 | `No files are associated with this record.`                                                  | Same — no attachments at all.                                       | Same fix. |
 | `Failed to retrieve the file content.`                                                       | Attachment exists but file content can't be loaded.                 | Re-upload the file via the Files panel. |
@@ -139,7 +141,7 @@ Means the engine tried to parse a non-numeric value as a `decimal`.
 | Header dimension filters (Branch / Org / Ledger) too narrow   | Test Fetch with all four blank — values appearing means the filters are the problem. |
 | Wrong **Period Template** for the column type (e.g. `{MONTH}{YEAR}` on a Date column with `Period Scope = Monthly`) | Date columns with `Monthly` scope ignore the template; the engine uses period boundaries. Set Type = Date. |
 | Account-type sign normalization flipped the value             | Check the underlying GL data — credit-normal account types (L / I) get auto-flipped to positive. |
-| Cross-definition formula references a definition not linked    | Trace log shows `Formula references unknown key 'PFX_LINE'`. Add the missing definition to the FR101000 / FR101003 link grid. |
+| Cross-definition formula references a definition not linked    | Generation now **fails** with `Formula references unknown Line Code 'PFX_LINE'` (previously the engine returned 0 silently). Add the missing definition to the FR101000 / FR101003 link grid, or fix the typo. |
 
 ---
 

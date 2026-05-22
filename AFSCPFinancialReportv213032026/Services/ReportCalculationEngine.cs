@@ -739,10 +739,17 @@ namespace FinancialReport.Services
                 var tokens = TokenizeFormula(formula);
                 return EvaluateTokens(tokens, currentPrefix, knownPrefixes, globalValues);
             }
+            catch (PXException)
+            {
+                // Already a clearly-scoped engine exception (e.g. unknown key) — let it propagate.
+                throw;
+            }
             catch (Exception ex)
             {
+                // Surface formula errors to the user; silent zero in a financial report is
+                // worse than a failed generation because the output looks valid.
                 PXTrace.WriteError($"ReportCalculationEngine: Formula evaluation failed for '{formula}': {ex.Message}");
-                return 0m;
+                throw new PXException(Messages.FormulaEvaluationFailed, formula, ex.Message);
             }
         }
 
@@ -843,8 +850,9 @@ namespace FinancialReport.Services
             if (globalValues.TryGetValue(globalKey, out decimal lineValue))
                 return lineValue;
 
-            PXTrace.WriteWarning($"ReportCalculationEngine: Formula references unknown key '{globalKey}' (token: '{token}'). Defaulting to 0.");
-            return 0m;
+            // Throw rather than default to 0: a typo'd or removed Line Code in a formula
+            // would otherwise silently zero out a financial figure with no user-visible signal.
+            throw new PXException(Messages.UnknownFormulaLineCode, globalKey);
         }
 
         // ─────────────────────────────────────────────────────────────────

@@ -35,6 +35,8 @@ namespace FinancialReport
         // REPORT GENERATION MESSAGES
         // ==================================================
         public const string PleaseSelectTemplate = "Please select a template to generate the report.";
+        public const string NoDefinitionsLinkedToReport = "No report definitions linked. Please add at least one definition on the Report Definitions tab before generating a report.";
+        public const string GIDataSourceNotFound = "Generic Inquiry '{0}' was not found in tenant '{1}'. Check the GI Name on the linked Report Definition (it must match a GI that is published and accessible in this tenant).";
         public const string NoGeneratedFile = "No generated file is available for download. Please generate the report first.";
         public const string FileGenerationInProgress = "A report generation process is already running for this template.";
         public const string CurrentYearNotSpecified = "Current Year is not specified for the selected report.";

@@ -59,6 +59,11 @@ namespace FinancialReport.Services
 
                 var localDataService = new FinancialDataService(_authService, tenantName, pipelineCtx.ColumnMapping);
 
+                // Probe the configured GI BEFORE the parallel fetches. If the GI name on the
+                // linked Report Definition does not match a published GI in the tenant, every
+                // fetch task would 404 and the user would just see "Failed to fetch OData".
+                localDataService.ValidateGIExists(cancellationToken);
+
                 // 2. Get Template File
                 var (templateFileContent, originalFileName) = _fileService.GetFileContentAndName(_currentRecord.Noteid, _currentRecord);
                 if (templateFileContent == null || templateFileContent.Length == 0)
@@ -129,15 +134,15 @@ namespace FinancialReport.Services
                 var taskCY      = Task.Run(async () => { await fetchGate.WaitAsync(cancellationToken); try { return localDataService.FetchAllApiData(_currentRecord.Branch, _currentRecord.Organization, _currentRecord.Ledger, selectedPeriod,      needsDetail, cancellationToken); } finally { fetchGate.Release(); } }, cancellationToken);
                 var taskPY      = Task.Run(async () => { await fetchGate.WaitAsync(cancellationToken); try { return localDataService.FetchAllApiData(_currentRecord.Branch, _currentRecord.Organization, _currentRecord.Ledger, prevYearPeriod,      needsDetail, cancellationToken); } finally { fetchGate.Release(); } }, cancellationToken);
                 var taskRangeCY = needsCumulative
-                    ? Task.Run(async () => { await fetchGate.WaitAsync(cancellationToken); try { return localDataService.FetchRangeApiData(_currentRecord.Branch, _currentRecord.Organization, _currentRecord.Ledger, cyFyStartPeriod, selectedPeriod, cancellationToken); } finally { fetchGate.Release(); } }, cancellationToken)
+                    ? Task.Run(async () => { await fetchGate.WaitAsync(cancellationToken); try { return localDataService.FetchRangeApiData(_currentRecord.Branch, _currentRecord.Organization, _currentRecord.Ledger, cyFyStartPeriod, selectedPeriod, needsDetail, cancellationToken); } finally { fetchGate.Release(); } }, cancellationToken)
                     : Task.FromResult<FinancialApiData>(null);
                 var taskRangePY = needsCumulative
-                    ? Task.Run(async () => { await fetchGate.WaitAsync(cancellationToken); try { return localDataService.FetchRangeApiData(_currentRecord.Branch, _currentRecord.Organization, _currentRecord.Ledger, pyFyStartPeriod, prevYearPeriod, cancellationToken); } finally { fetchGate.Release(); } }, cancellationToken)
+                    ? Task.Run(async () => { await fetchGate.WaitAsync(cancellationToken); try { return localDataService.FetchRangeApiData(_currentRecord.Branch, _currentRecord.Organization, _currentRecord.Ledger, pyFyStartPeriod, prevYearPeriod, needsDetail, cancellationToken); } finally { fetchGate.Release(); } }, cancellationToken)
                     : Task.FromResult<FinancialApiData>(null);
                 // PY opening = EndingBalance at FY end of 2 years ago (source for PY Beginning Balance).
                 var taskPrior   = Task.Run(async () => { await fetchGate.WaitAsync(cancellationToken); try { return localDataService.FetchAllApiData(_currentRecord.Branch, _currentRecord.Organization, _currentRecord.Ledger, prevYearPriorPeriod, needsDetail, cancellationToken); } finally { fetchGate.Release(); } }, cancellationToken);
 
-                Task.WhenAll(taskCY, taskPY, taskRangeCY, taskRangePY, taskPrior).Wait();
+                Task.WhenAll(taskCY, taskPY, taskRangeCY, taskRangePY, taskPrior).Wait(cancellationToken);
 
                 var currYearData      = taskCY.Result;
                 var prevYearData      = taskPY.Result;

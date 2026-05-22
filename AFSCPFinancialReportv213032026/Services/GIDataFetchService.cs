@@ -87,7 +87,14 @@ namespace FinancialReport.Services
             {
                 var selectSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var vc in valueColumns)
+                {
                     selectSet.Add(vc.GIColumn);
+                    // RowFilter is applied client-side AFTER fetch. Any column it references
+                    // must be present in the OData payload or row[column] returns "" and the
+                    // filter silently produces wrong results.
+                    foreach (var fc in ExtractRowFilterColumns(vc.RowFilter))
+                        selectSet.Add(fc);
+                }
                 if (!string.IsNullOrWhiteSpace(ds.KeyColumn))
                     selectSet.Add(ds.KeyColumn);
                 selectColumns = string.Join(",", selectSet);
@@ -374,7 +381,8 @@ namespace FinancialReport.Services
 
                 case FLRTGIDataSource.GIColumnType.String:
                 default:
-                    return $"{column} eq '{value}'";
+                    // OData escapes a literal ' inside a single-quoted string by doubling it.
+                    return $"{column} eq '{value.Replace("'", "''")}'";
             }
         }
 
@@ -430,6 +438,23 @@ namespace FinancialReport.Services
                     return false;
                 return true;
             }).ToList();
+        }
+
+        /// <summary>
+        /// Returns the set of column names referenced by a RowFilter expression so they can
+        /// be added to the $select clause. Uses the same parse shape as ApplyRowFilter.
+        /// </summary>
+        private static IEnumerable<string> ExtractRowFilterColumns(string rowFilter)
+        {
+            if (string.IsNullOrWhiteSpace(rowFilter)) yield break;
+            var conditions = Regex.Split(rowFilter.Trim(), @"\s+and\s+", RegexOptions.IgnoreCase);
+            foreach (var condition in conditions)
+            {
+                var match = Regex.Match(condition.Trim(),
+                    @"^(\S+)\s+(eq|ne|gt|lt|ge|le|contains)\s+'?([^']*)'?$",
+                    RegexOptions.IgnoreCase);
+                if (match.Success) yield return match.Groups[1].Value;
+            }
         }
 
         /// <summary>
