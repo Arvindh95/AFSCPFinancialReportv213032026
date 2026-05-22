@@ -45,6 +45,11 @@ namespace FinancialReport.Services
             _columnMapping = columnMapping ?? new GIColumnMapping();
         }
 
+        // OData escapes a literal ' inside a single-quoted string by doubling it.
+        // Without this, any user-entered value containing ' (e.g. branch "O'Brien")
+        // breaks the entire filter with a 500 syntax error.
+        private static string OEsc(string s) => s == null ? "" : s.Replace("'", "''");
+
         // --------------------------------------------------------
         // 1) FetchAllApiData (with URL Fallback Logic)
         // --------------------------------------------------------
@@ -60,7 +65,7 @@ namespace FinancialReport.Services
         {
             string accessToken = await _authService.AuthenticateAndGetTokenAsync();
             string dimensionFilter = BuildDimensionFilter(branch, organization);
-            string filter = $"{_columnMapping.PeriodColumn} eq '{period}' and {dimensionFilter}";
+            string filter = $"{_columnMapping.PeriodColumn} eq '{OEsc(period)}' and {dimensionFilter}";
 
             var accountData = new Dictionary<string, FinancialPeriodData>();
             var detailRows  = new List<FinancialPeriodData>();
@@ -142,7 +147,7 @@ namespace FinancialReport.Services
         {
             string accessToken = _authService.AuthenticateAndGetToken();
             string dimensionFilter = BuildDimensionFilter(branch, organization);
-            string baseFilter = $"{_columnMapping.PeriodColumn} ge '{fromPeriod}' and {_columnMapping.PeriodColumn} le '{toPeriod}' and {dimensionFilter}";
+            string baseFilter = $"{_columnMapping.PeriodColumn} ge '{OEsc(fromPeriod)}' and {_columnMapping.PeriodColumn} le '{OEsc(toPeriod)}' and {dimensionFilter}";
 
             var cumulativeDict = new Dictionary<string, FinancialPeriodData>();
 
@@ -184,7 +189,7 @@ namespace FinancialReport.Services
         public FinancialApiData FetchCompositeKeyData(string branch, string organization, string ledger, string period, CancellationToken cancellationToken = default)
         {
             string accessToken = _authService.AuthenticateAndGetToken();
-            string baseFilter = $"{_columnMapping.PeriodColumn} eq '{period}' and 1 eq 1";
+            string baseFilter = $"{_columnMapping.PeriodColumn} eq '{OEsc(period)}' and 1 eq 1";
 
             var compositeData = new Dictionary<string, FinancialPeriodData>();
 
@@ -241,8 +246,8 @@ namespace FinancialReport.Services
             }
 
             string accessToken = _authService.AuthenticateAndGetToken();
-            string baseFilter = $"{_columnMapping.PeriodColumn} eq '{period}' and {_columnMapping.BranchColumn} eq '{branch}' and {_columnMapping.OrganizationColumn} eq '{organization}' and " +
-                               $"{_columnMapping.AccountColumn} eq '{account}' and {_columnMapping.SubaccountColumn} eq '{subaccount}'";
+            string baseFilter = $"{_columnMapping.PeriodColumn} eq '{OEsc(period)}' and {_columnMapping.BranchColumn} eq '{OEsc(branch)}' and {_columnMapping.OrganizationColumn} eq '{OEsc(organization)}' and " +
+                               $"{_columnMapping.AccountColumn} eq '{OEsc(account)}' and {_columnMapping.SubaccountColumn} eq '{OEsc(subaccount)}'";
 
             var results = ExecuteFetchWithFallback(_httpClient, baseFilter, ledger, accessToken, cancellationToken);
 
@@ -548,15 +553,15 @@ namespace FinancialReport.Services
             if (!string.IsNullOrEmpty(branch) && !string.IsNullOrEmpty(organization))
             {
                 // Return a filter that requires BOTH match
-                return $"{_columnMapping.BranchColumn} eq '{branch}' and {_columnMapping.OrganizationColumn} eq '{organization}'";
+                return $"{_columnMapping.BranchColumn} eq '{OEsc(branch)}' and {_columnMapping.OrganizationColumn} eq '{OEsc(organization)}'";
             }
             else if (!string.IsNullOrEmpty(branch))
             {
-                return $"{_columnMapping.BranchColumn} eq '{branch}'";
+                return $"{_columnMapping.BranchColumn} eq '{OEsc(branch)}'";
             }
             else if (!string.IsNullOrEmpty(organization))
             {
-                return $"{_columnMapping.OrganizationColumn} eq '{organization}'";
+                return $"{_columnMapping.OrganizationColumn} eq '{OEsc(organization)}'";
             }
             else
             {
@@ -568,7 +573,7 @@ namespace FinancialReport.Services
         private string AppendLedgerFilter(string baseFilter, string ledger)
         {
             return !string.IsNullOrEmpty(ledger)
-                ? $"{baseFilter} and {_columnMapping.LedgerColumn} eq '{ledger}'"
+                ? $"{baseFilter} and {_columnMapping.LedgerColumn} eq '{OEsc(ledger)}'"
                 : baseFilter;
         }
 

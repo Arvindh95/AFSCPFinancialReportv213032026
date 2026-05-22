@@ -374,7 +374,8 @@ namespace FinancialReport.Services
 
                 case FLRTGIDataSource.GIColumnType.String:
                 default:
-                    return $"{column} eq '{value}'";
+                    // OData escapes a literal ' inside a single-quoted string by doubling it.
+                    return $"{column} eq '{value.Replace("'", "''")}'";
             }
         }
 
