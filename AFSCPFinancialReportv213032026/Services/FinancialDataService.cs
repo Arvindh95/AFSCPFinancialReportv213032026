@@ -143,40 +143,61 @@ namespace FinancialReport.Services
         // --------------------------------------------------------
         // 2) FetchRangeApiData
         // --------------------------------------------------------
-        public FinancialApiData FetchRangeApiData(string branch, string organization, string ledger, string fromPeriod, string toPeriod, CancellationToken cancellationToken = default)
+        public FinancialApiData FetchRangeApiData(string branch, string organization, string ledger, string fromPeriod, string toPeriod, bool includeDetail = false, CancellationToken cancellationToken = default)
         {
             string accessToken = _authService.AuthenticateAndGetToken();
             string dimensionFilter = BuildDimensionFilter(branch, organization);
             string baseFilter = $"{_columnMapping.PeriodColumn} ge '{OEsc(fromPeriod)}' and {_columnMapping.PeriodColumn} le '{OEsc(toPeriod)}' and {dimensionFilter}";
 
             var cumulativeDict = new Dictionary<string, FinancialPeriodData>();
+            var detailRows = new List<FinancialPeriodData>();
 
             Action<JToken> rowConsumer = (item) =>
             {
                 string accountId = item[_columnMapping.AccountColumn]?.ToString();
-                decimal debit = item[_columnMapping.DebitColumn]?.ToObject<decimal>() ?? 0;
-                decimal credit = item[_columnMapping.CreditColumn]?.ToObject<decimal>() ?? 0;
-                decimal endingBalance = item[_columnMapping.EndingBalCol]?.ToObject<decimal>() ?? 0;
                 if (string.IsNullOrEmpty(accountId)) return;
+
+                string subaccount  = item[_columnMapping.SubaccountColumn]?.ToString()?.Trim()    ?? string.Empty;
+                string branchId    = item[_columnMapping.BranchColumn]?.ToString()?.Trim()        ?? string.Empty;
+                string orgId       = item[_columnMapping.OrganizationColumn]?.ToString()?.Trim()  ?? string.Empty;
+                string ledgerId    = item[_columnMapping.LedgerColumn]?.ToString()?.Trim()        ?? string.Empty;
+                string accountType = item[_columnMapping.TypeColumn]?.ToString() ?? string.Empty;
+                decimal debit         = item[_columnMapping.DebitColumn]?.ToObject<decimal>()    ?? 0;
+                decimal credit        = item[_columnMapping.CreditColumn]?.ToObject<decimal>()   ?? 0;
+                decimal endingBalance = item[_columnMapping.EndingBalCol]?.ToObject<decimal>()   ?? 0;
 
                 if (!cumulativeDict.TryGetValue(accountId!, out var cumEntry))
                 {
-                    cumEntry = new FinancialPeriodData();
+                    // AccountType captured here so sign-flip in ApplyAccountTypeSign works
+                    // for Liability/Income lines using YTD Debit/Credit/Movement.
+                    cumEntry = new FinancialPeriodData { Account = accountId, AccountType = accountType };
                     cumulativeDict[accountId!] = cumEntry;
                 }
-                cumEntry.Debit += debit;
-                cumEntry.Credit += credit;
+                cumEntry.Debit         += debit;
+                cumEntry.Credit        += credit;
                 cumEntry.EndingBalance += endingBalance;
+
+                if (includeDetail)
+                {
+                    // Each row is one (account, sub, branch, org, ledger, period) tuple;
+                    // engine aggregates these client-side when a line has dimension filters.
+                    detailRows.Add(new FinancialPeriodData
+                    {
+                        Account = accountId, Subaccount = subaccount, AccountType = accountType,
+                        BranchID = branchId, OrganizationID = orgId, Ledger = ledgerId,
+                        Debit = debit, Credit = credit, EndingBalance = endingBalance
+                    });
+                }
             };
 
-            Action resetConsumer = () => { cumulativeDict.Clear(); };
+            Action resetConsumer = () => { cumulativeDict.Clear(); detailRows.Clear(); };
 
             int count = ExecuteFetchStreamWithFallbackAsync(_httpClient, baseFilter, ledger, accessToken, rowConsumer, resetConsumer, cancellationToken).Result;
 
             if (count < 0)
                 throw new PXException(Messages.FailedToFetchOData);
 
-            var apiData = new FinancialApiData();
+            var apiData = new FinancialApiData { DetailRows = detailRows };
             foreach (var kvp in cumulativeDict)
                 apiData.AccountData[kvp.Key] = kvp.Value;
 
