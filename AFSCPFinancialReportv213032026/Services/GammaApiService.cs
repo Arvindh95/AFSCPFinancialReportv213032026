@@ -61,7 +61,8 @@ namespace FinancialReport.Services
             PXTrace.WriteInformation($"[Gamma] Generation submitted. ID: {generationId}");
 
             string exportUrl = PollUntilCompleted(generationId, cancellationToken);
-            PXTrace.WriteInformation($"[Gamma] Generation completed. Downloading PPTX from: {exportUrl}");
+            // Export URL is the sole auth on the PPTX — log generationId only, not the URL.
+            PXTrace.WriteInformation($"[Gamma] Generation completed. Downloading PPTX (generationId={generationId}).");
 
             byte[] pptBytes = DownloadFile(exportUrl);
             PXTrace.WriteInformation($"[Gamma] Downloaded {pptBytes.Length} bytes.");
@@ -80,7 +81,8 @@ namespace FinancialReport.Services
             PXTrace.WriteInformation($"[Gamma] Template generation submitted. ID: {generationId}");
 
             string exportUrl = PollUntilCompleted(generationId, cancellationToken);
-            PXTrace.WriteInformation($"[Gamma] Template generation completed. Downloading PPTX from: {exportUrl}");
+            // Export URL is the sole auth on the PPTX — log generationId only, not the URL.
+            PXTrace.WriteInformation($"[Gamma] Template generation completed. Downloading PPTX (generationId={generationId}).");
 
             byte[] pptBytes = DownloadFile(exportUrl);
             PXTrace.WriteInformation($"[Gamma] Downloaded {pptBytes.Length} bytes.");
