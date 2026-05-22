@@ -1096,7 +1096,7 @@ The header is split into two column groups. The left group identifies the report
 | **Template Name**  | yes      | `BS Annual Report 2024`          | Free-text code identifying this report run, up to 225 chars. Shown in the FR401000 list. Not the Word filename — this is the *record* name.                                                                                       |
 | **Description**    | no       | `Balance Sheet for December 2024`| Free-text label, up to 50 chars.                                                                                                                                                                                                   |
 | **Current Year**   | yes      | `2024`                           | Fiscal year the report runs for. The dropdown is populated from distinct `FinPeriod.FinYear` values, sorted descending.                                                                                                            |
-| **Financial Month**| yes      | `December`                       | Month-of-year (`01`–`12`). Defaults to `12` (December). Sets the **period end** for the FY-to-date window every linked Definition reads. Same window is used for the `_PY` pass against the prior year.                          |
+| **Financial Month**| yes      | `December`                       | Month-of-year (`01`–`12`). Defaults to `12` (December). Sets the **fiscal year start month**. The FY-to-date window runs from this month in the prior calendar year through one month before it in the Current Year (12 months total). Same window shape is used for the `_PY` pass against the previous FY. |
 | **Organization**   | no       | `PRODUCTS`                       | Optional filter. Blank = all organizations the tenant can see.                                                                                                                                                                     |
 | **Branch**         | no       | `PRODWHOLE`                      | Optional filter. Blank = all branches.                                                                                                                                                                                             |
 | **Ledger**         | no       | `ACTUAL`                         | Optional filter. Blank = all ledgers.                                                                                                                                                                                              |
@@ -1110,14 +1110,16 @@ Click the magnifier next to **Current Year** to open the selector. It shows ever
 
 ### Step 5 — Pick the Financial Month
 
-**Financial Month** is a fixed dropdown (`January` … `December`). It defines the **period end** of the fiscal-year-to-date window the engine reads. Every line item in every linked Definition resolves twice — once for `_CY`, once for `_PY` — against this same FY-to-date window:
+**Financial Month** is a fixed dropdown (`January` … `December`). It defines the **fiscal year start month**. The engine's FY-to-date window runs from this month in the year before **Current Year** through one month before it in **Current Year** — 12 months total. Every line item in every linked Definition resolves twice — once for `_CY`, once for `_PY` — against this window:
 
-- `_CY` — fiscal-year-to-date through end of the selected month, in the **Current Year**.
-- `_PY` — fiscal-year-to-date through end of the same month, in the **previous fiscal year**.
+- `_CY` — FY-to-date for the **Current Year** FY (e.g. `Current Year=2025`, `Financial Month=August` → Aug 2024 through Jul 2025).
+- `_PY` — same window shifted back one fiscal year (e.g. Aug 2023 through Jul 2024).
+
+For a calendar fiscal year, pick `January` (so the window is Jan→Dec of the Current Year).
 
 There is no single-period (month-only) placeholder. If a month-only delta is needed, compute it inside the Word template (`{{PFX_X_CY}} - {{PFX_X_PY}}`) — formulas inside a Definition cannot mix periods.
 
-Default is `December` (month `12`) so annual statements need no change.
+Default is `December` (FY runs Dec(prior year) → Nov(Current Year)). Override per tenant's actual fiscal year start.
 
 ![Financial Month dropdown open](images/report_generation/reportgen_03_month_dropdown.png)
 
