@@ -1,6 +1,6 @@
 # MBR Definition Setup — FR101004
 
-This document describes how to create an **MBR Definition** (Monthly Board Report data source). An MBR Definition tells the AFS Financial Report engine how to pull values from **any Acumatica Generic Inquiry** — not just the GL Trial Balance — and exposes the results as named placeholders that the [MBR Report Generation](../02-generation/MBRReport_Generation.md) screen and Word templates can consume.
+This document describes how to create an **MBR Definition** (Monthly Board Report data source). An MBR Definition tells the AFS Financial Report engine how to pull values from **any Acumatica Generic Inquiry** — not just the GL Trial Balance — and exposes the results as named placeholders that the [MBR Report Generation](../02-generation/MBRReport_Generation.md) screen (FR101003) consumes when it builds the Gamma markdown prompt.
 
 Where [ReportDefinition_Setup](ReportDefinition_Setup.md) is hard-wired to GL balance concepts (Account / EndingBalance / Debit / Credit), an MBR Definition is fully generic: you map any GI column to any output placeholder, with your own filters, aggregation, and formatting.
 
@@ -56,7 +56,7 @@ Type values into the four identity-group fields:
 | Field             | Required | Notes                                                                                  |
 | ----------------- | -------- | -------------------------------------------------------------------------------------- |
 | **Data Source Code** | yes (key) | Unique identifier, max 50 chars. Locked after first save. |
-| **Prefix**           | yes      | 2–10 alphanumeric chars. Namespaces every placeholder this row emits. Must be globally unique across **all** MBR Definitions and Report Definitions. |
+| **Prefix**           | yes      | Up to 10 alphanumeric chars. Namespaces every placeholder this row emits. Must be unique across **all MBR Definitions** (GI Data Sources). It is not checked against Report Definition prefixes. |
 | **Active**           | default ✓ | Uncheck to hide the data source from downstream screens without deleting it. |
 | **Description**      | no       | Free-text label, max 255 chars. Shown in the selector. |
 
@@ -135,26 +135,28 @@ Whichever dimension fields the caller leaves blank become **inactive** for that 
 
 #### How the predicates combine
 
-Every active filter is AND-combined into the single `$filter` clause sent to the GI:
+The **header-level** dimension filters (Period + Branch + Organization + Ledger) are AND-combined into the OData `$filter` clause that is **sent to the GI** (server-side). The per-column **Key Range** and **Row Filter** are applied **client-side, in memory, after the rows come back** — they are *not* part of the OData query:
 
 ```
-($filter = <PeriodPredicate>
-       and <BranchPredicate>
-       and <OrgPredicate>
-       and <LedgerPredicate>
-       and <Per-row Key Range from each Column row>
-       and <Per-row Row Filter from each Column row>)
+Sent to the GI (server-side $filter):
+  <PeriodPredicate> and <BranchPredicate> and <OrgPredicate> and <LedgerPredicate>
+
+Applied in memory after fetch (per column row):
+  <Key Range>  then  <Row Filter>
 ```
 
-Worked example — a data source mapped to a sales GI with `BranchID` (String), `OrganizationID` (String), `LedgerID` (Integer) columns. Test Fetch supplies *Branch = `MAIN`*, *Organization = `CENSOF`*, *Ledger = `2`*; the column row also sets `Status eq 'Closed'` as its Row Filter. The engine emits:
+> Date predicates use the OData v3 `datetime'...'` literal form, and Decimal predicates carry an `m` suffix — e.g. `Date ge datetime'2026-04-01T00:00:00'`, `Amount eq 100m`. The engine builds these for you from the **Type** dropdown.
+
+Worked example — a data source mapped to a sales GI with `BranchID` (String), `OrganizationID` (String), `LedgerID` (Integer) columns. Test Fetch supplies *Branch = `MAIN`*, *Organization = `CENSOF`*, *Ledger = `2`*; the column row also sets `Status eq 'Closed'` as its Row Filter. The engine sends this `$filter` to the GI:
 
 ```odata
-$filter=Date ge 2026-04-01T00:00:00 and Date lt 2026-05-01T00:00:00
+$filter=Date ge datetime'2026-04-01T00:00:00' and Date lt datetime'2026-05-01T00:00:00'
        and BranchID eq 'MAIN'
        and OrganizationID eq 'CENSOF'
        and LedgerID eq 2
-       and Status eq 'Closed'
 ```
+
+…then, after the rows return, it applies the column's `Status eq 'Closed'` Row Filter in memory before aggregating.
 
 #### When to skip these filters
 
@@ -166,7 +168,7 @@ The dimension filters exist to mirror the FR101000 / FR101003 *header scope* —
 
 > **Type-mismatch trap.** Setting **Branch Type = Integer** but pointing **Branch Filter Column** at a string column produces an OData 400 error at fetch time, not a save-time validation error. If Test Fetch fails with `Bad Request — Invalid filter expression`, the wrong **Type** dropdown is the first thing to check.
 
-> The five header-level filters (Period + Branch + Org + Ledger) are AND-combined with each column row's optional `Key From/To` range and `Row Filter (OData)` to form the final `$filter` clause sent to the GI.
+> The four header-level filters (Period + Branch + Org + Ledger) form the OData `$filter` sent to the GI. Each column row's optional `Key From/To` range and `Row Filter` are then applied **client-side** to the returned rows.
 
 ---
 
@@ -184,7 +186,7 @@ The grid has 17 columns. Their relevance depends on `LineType` — fields that d
 | ----------------- | -------- | ------------------------------------------------------------------------------------ |
 | **Sort Order**       | default 0 | Display order in the grid and in the markdown preview. Does **not** drive evaluation order — that uses topological sort of formula references, so a CALCULATED row can sit at Sort Order 10 above the VALUE rows it consumes at 20/30 without breaking. |
 | **Column Alias**     | yes      | Unique within the data source. Allowed chars: letters, digits, underscore. Forms the placeholder key: `{{<Prefix>_<ColumnAlias>}}`. Spaces, hyphens, dots in the alias break the placeholder lookup at merge time — keep it `[A-Z0-9_]+`. |
-| **Description**     | optional | Human-readable label. Shown as the row label in the markdown preview that Test Fetch / FR101003 produce. The Word merge dictionary doesn't reference it. |
+| **Description**     | optional | Human-readable label. Shown as the row label in the markdown preview that Test Fetch / FR101003 produce. The placeholder dictionary doesn't reference it. |
 | **Line Type**       | yes      | One of four — see table below. The graph auto-disables fields that don't apply when you change Line Type, and on the next save it nulls those fields too. |
 | **Visible**         | default ✓ | Uncheck to **calculate but not emit**. Useful for intermediate VALUE rows that only exist as inputs to a CALCULATED row's Formula. Disabled (and forced false) on `HEADING` rows. The dictionary still contains the value — just not under a `{{ }}` key, so templates can't reference it directly but formulas can. |
 | **Format String**   | optional | Standard .NET format string applied at the final write step (after Aggregate and CALCULATED arithmetic). See the [Format String reference](#format-string-reference) below. Blank = pass through (numbers as `123456.78`, dates in ISO). |
@@ -238,13 +240,18 @@ Filters rows by comparing the value in the **parent data source's `Key Column`**
 | `Key From` blank, `Key To = 4999`   | Include rows where `KeyColumn ≤ 4999`. |
 | Both blank                          | Include all rows (no key-range predicate). |
 
-Comparison is **string-lex** when the GI column is a string and **numeric** when the column is numeric — Acumatica decides per-column from the GI metadata. For numeric account-style columns (`AccountID`, `OrderNbr`) numeric ordering is what you want; for code columns (`BranchCD`, `Status`) string ordering applies, so `Key From = 'A'` to `Key To = 'M'` works as expected.
+Comparison is **always a case-insensitive string (lexical) compare** — the engine compares the `KeyColumn` value against the bounds with `string.Compare`, regardless of the column's underlying type. This matters for numeric-looking codes: a range of `Key From = 4000` / `Key To = 4999` works only because the codes are equal-width; mixed-width numbers (`500` vs `4000`) sort lexically (`"4000" < "500"`), not numerically. Pad numeric keys to a fixed width if you need numeric-style ranges.
 
-Key Range applies only when **Key Column** is set on the header. Without a Key Column, the engine has no reference field to compare against — Key From / Key To values you type are ignored at fetch time.
+Key Range applies only when **Key Column** is set on the header, and is evaluated **client-side** after the rows are fetched. Without a Key Column the engine has no reference field to compare against — Key From / Key To values you type are ignored.
 
 ##### Row Filter (OData)
 
-Free-text **OData predicate** AND-combined with the header filters and the per-row Key Range. This is the escape hatch that lets one VALUE row apply filters the standard header / key-range fields can't express. The string is appended verbatim to the `$filter` clause sent to the GI — no parsing, no substitution, no escaping.
+An OData-**style** predicate that the engine evaluates **client-side, in memory**, against the rows already returned by the GI. It is **not** sent to OData and is **not** appended to the server `$filter`. The engine parses it with a small built-in evaluator, so only a limited grammar is supported (see below).
+
+**Supported grammar (client-side evaluator):**
+- **Operators:** `eq`, `ne`, `gt`, `lt`, `ge`, `le`, and `contains` only.
+- **Joining:** multiple conditions joined by `and` only. **`or` is NOT supported.** `not`, `startswith`, `endswith`, `tolower`, `toupper`, and `null` comparisons are **NOT supported** — conditions the parser can't match are silently skipped.
+- A condition is `<Column> <op> <value>`; string values may be single-quoted (`Status eq 'Closed'`) or bare (`OrderTotal gt 1000`). Numeric comparisons are detected automatically when both sides parse as numbers; otherwise it falls back to a case-insensitive string compare.
 
 **Common patterns:**
 
@@ -253,44 +260,26 @@ Free-text **OData predicate** AND-combined with the header filters and the per-r
 | Only closed orders | `Status eq 'Closed'` |
 | Open orders above $1,000 | `Status eq 'Open' and OrderTotal gt 1000` |
 | Anything but cancelled | `Status ne 'Cancelled'` |
-| Multiple statuses | `Status eq 'Open' or Status eq 'Pending'` |
-| Vendor name contains "Acme" | `contains(VendorName,'Acme')` |
-| Vendor name starts with "A" | `startswith(VendorName,'A')` |
-| Vendor name ends with "Inc" | `endswith(VendorName,'Inc')` |
-| Created since a date | `CreatedOn ge 2025-01-01T00:00:00` |
-| Date in current quarter | `Date ge 2026-01-01T00:00:00 and Date lt 2026-04-01T00:00:00` |
-| Field is null | `Description eq null` |
-| Field is not null | `Description ne null` |
-| Boolean true | `IsActive eq true` |
-| Numeric in a list | `LedgerID eq 1 or LedgerID eq 2 or LedgerID eq 3` |
+| Vendor name contains "Acme" | `contains(VendorName,'Acme')` — **not supported in this form**; use a bare `contains` operand: `VendorName contains 'Acme'` |
 
-**Operators supported by Acumatica OData:** `eq`, `ne`, `lt`, `le`, `gt`, `ge`, `and`, `or`, `not`, plus the `contains` / `startswith` / `endswith` / `tolower` / `toupper` string functions.
+> **Not supported** (would be silently ignored): `or` (e.g. `Status eq 'Open' or Status eq 'Pending'`), `startswith` / `endswith`, `not`, and `eq null` / `ne null` null checks. If you need an OR across statuses, create two VALUE rows (one per status) and add them in a CALCULATED row instead.
 
-**Quoting rules:**
-- String literals: single quotes — `'Closed'`, `'MAIN'`. Embed a single-quote by doubling it (`'O''Brien'`).
-- Numeric literals: bare — `1000`, `4.5`.
-- Date / DateTime literals: ISO format with no quotes — `2025-01-01T00:00:00`.
-- Boolean literals: `true` / `false` (lowercase, no quotes).
-- Column names: bare (no quotes around the property name).
+> Any GI column referenced by a Row Filter is automatically added to the OData `$select` so the value is present for the in-memory comparison.
 
-**How it composes with the other filters.** The final `$filter` for a single VALUE row is:
+**How it composes with the other filters.** For each column row the engine:
 
-```
-<header Period predicate>
-  and <header Branch predicate>
-  and <header Org predicate>
-  and <header Ledger predicate>
-  and <Key Range from this row>
-  and <Row Filter from this row>
-```
+1. fetches rows using the header `$filter` (Period + Branch + Org + Ledger),
+2. applies this row's **Key Range** (client-side),
+3. applies this row's **Row Filter** (client-side),
+4. aggregates the survivors.
 
-Different VALUE rows can have different Row Filters — each row hits OData with its own `$filter`, so two rows on the same data source can read the same GI with completely different predicates (one for "open orders sum", one for "closed orders sum") in a single Test Fetch / Generate run. The engine de-duplicates queries when two rows happen to produce identical filter strings.
+Different VALUE rows can therefore apply completely different Row Filters to the same fetched data (one for "open orders sum", one for "closed orders sum") in a single Test Fetch / Generate run.
 
 **Common gotchas:**
-- **No quoting around column names.** `'OrderTotal' gt 1000` is wrong — it compares the literal string `'OrderTotal'` against `1000`. Drop the quotes: `OrderTotal gt 1000`.
+- **`or` does nothing.** `Status eq 'Open' or Status eq 'Pending'` is not parseable by the client-side evaluator and the whole condition is skipped. Split into separate rows.
+- **No quoting around column names.** `'OrderTotal' gt 1000` compares the literal string `'OrderTotal'` against `1000`. Drop the quotes: `OrderTotal gt 1000`.
 - **Case-sensitive operators.** `Status EQ 'Open'` fails — use lowercase `eq`.
-- **Property names from Detect Columns.** If you typed a property name freehand, run Detect Columns first and copy from the dialog — the runtime OData property names sometimes differ from the design-time field names shown in the GI Result table.
-- **Failures surface only at fetch time.** A malformed Row Filter saves successfully. Test Fetch (or Generate Presentation) raises `Failed to fetch OData` with the OData 400 message — read the trace log for the actual server response.
+- **Property names from Detect Columns.** Run Detect Columns first and copy the exact property name from the dialog — runtime OData property names sometimes differ from the design-time GI Result field names.
 
 #### MULTIROW-line columns
 
@@ -301,7 +290,7 @@ Editable when `LineType = MULTIROW`. **Key From / To** and **Row Filter** also a
 | **Order By Column**            | GI column to sort rows by before slicing. Selector lists Detect-Columns output. Required for MULTIROW — leaving it blank gives natural OData order, which is undefined for most GIs. |
 | **Sort Direction**             | `Descending` (default — top values first, e.g. largest `OrderTotal`) or `Ascending` (smallest first, oldest dates first). |
 | **Row Limit**                  | How many top rows to expand into placeholders. Default 10. The GI `$top` clause uses this value directly — pulling 1000 rows is fine for OData but slow for the Word merge step. Keep it ≤ 50 for templates. |
-| **Display Columns (markdown)** | Comma-separated list of GI column names to include in the markdown preview that Test Fetch / FR101003 produce. Example: `Vendor,OrderTotal,Status` — only those three columns appear in the preview table. **Word placeholders always include every column from the GI row** regardless of this setting; this field affects only the markdown output. |
+| **Display Columns (markdown)** | Comma-separated list of GI column names to expand. Example: `Vendor,OrderTotal,Status` — only those three columns are emitted. Blank = expand **every** column from the GI row. This filter applies to **both** the markdown preview **and** the emitted `{{PFX_ALIAS_N_GICol}}` placeholders — columns not listed produce no placeholder. |
 
 A MULTIROW row produces one set of placeholders **per ranked row**, named `{{<Prefix>_<ColumnAlias>_<N>_<GIColumn>}}` where `N` is the 1-based rank. For example with Prefix `PO`, Alias `TOPVEND`, Row Limit 3, the engine emits placeholders like:
 
@@ -314,7 +303,7 @@ A MULTIROW row produces one set of placeholders **per ranked row**, named `{{<Pr
 {{PO_TOPVEND_3_OrderTotal}}  → "98,500"
 ```
 
-Reference these in a Word template's table cells to produce a "Top N" block that fills automatically each run.
+These ranked placeholders feed the markdown prompt that FR101003 sends to Gamma, producing a "Top N" block in the generated presentation.
 
 #### CALCULATED-line columns
 
@@ -431,7 +420,7 @@ To discard pending changes without deleting the saved record, click the **Cancel
 
 When **Generate Presentation** runs on FR101003 against a presentation that links this data source:
 
-1. `GIDataFetchService` builds the OData query — `$select` covers every GI column referenced by the column rows (key, period, branch, org, ledger, plus every VALUE / MULTIROW / Order-By column). `$filter` is the AND of header filters (period + branch + org + ledger, populated from the presentation header) and per-row `Key From/To` / `Row Filter`.
+1. `GIDataFetchService` builds the OData query — `$select` covers every GI column referenced by the column rows (key, period, branch, org, ledger, every VALUE / MULTIROW / Order-By column, plus any column named in a Row Filter). `$select` is skipped entirely when any MULTIROW column exists (all columns are fetched). The server `$filter` is the AND of the **header** filters only (period + branch + org + ledger, from the presentation header); each row's `Key From/To` and `Row Filter` are applied **client-side** after the rows return.
 2. The GI is called once per data source — the query result is cached in memory for the run.
 3. `FetchAndAggregate` processes each column row in topological order (so CALCULATED rows see their inputs already resolved):
    - **VALUE** rows aggregate matching rows with the chosen `Aggregate`.
@@ -493,4 +482,4 @@ Test Fetch runs steps 1–4 against a manually-supplied period and dumps the dic
 
 ## Next Step
 
-Proceed to [MBR Report Generation (FR101003)](../02-generation/MBRReport_Generation.md) to link this data source to a presentation and produce the `.pptx` / merged `.docx` output. The full placeholder catalogue is documented in [Placeholder Reference](../03-reference/Placeholder_Reference.md).
+Proceed to [MBR Report Generation (FR101003)](../02-generation/MBRReport_Generation.md) to link this data source to a presentation and produce the `.pptx` output via Gamma. The full placeholder catalogue is documented in [Placeholder Reference](../03-reference/Placeholder_Reference.md).

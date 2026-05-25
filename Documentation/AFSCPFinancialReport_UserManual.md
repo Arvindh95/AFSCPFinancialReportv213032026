@@ -25,7 +25,7 @@ The **AFSCPFinancialReport** customization for Acumatica 2025 R2 turns GL data a
         │  encrypted credentials per tenant
         ▼
    ┌──────────────────────────────┐
-   │ 3. Report Definitions        │ ── GL Trial Balance statements (BS / PL / CF / EQ / Custom)
+   │ 3. Report Definitions        │ ── GL Trial Balance statements (BS / PL / CF / Custom)
    │    (FR101002)                │    Five FY-to-date balance types, two placeholder periods.
    └──────────────────────────────┘
                  │ placeholders: {{PFX_LINE_CY}}, {{PFX_LINE_PY}}
@@ -364,7 +364,7 @@ Enter the four required header fields:
 | `CF`  | Cash Flow            |
 | `CU`  | Custom               |
 
-![Report Type dropdown open — 5 values](images/report_definition/reportdef_03_reporttype_dropdown.png)
+![Report Type dropdown open — 4 values](images/report_definition/reportdef_03_reporttype_dropdown.png)
 
 Also visible on the same header row:
 
@@ -404,7 +404,7 @@ This section tells the engine *which column in the chosen GI* holds each balance
 | **Organization Column**  | `OrganizationID`    | Organization code column. Referenced by **Organization Filter**.                         |
 | **Ledger Column**        | `LedgerID`          | Ledger code column. Referenced by **Ledger Filter**.                                     |
 
-> If you clone or customize the stock GI, rename these columns here to match the new field names. The 13 mapping fields default to the stock `AFS-Trial-Balance` column names — save is **not** blocked if you blank one out, but the engine will fall back to the default name (`Account`, `EndingBalance`, …) at fetch time. Set them explicitly when working against a renamed GI.
+> If you clone or customize the stock GI, rename these columns here to match the new field names. The 12 mapping fields default to the stock `AFS-Trial-Balance` column names — save is **not** blocked if you blank one out, but the engine will fall back to the default name (`Account`, `EndingBalance`, …) at fetch time. Set them explicitly when working against a renamed GI.
 
 ![Account Column selector open](images/report_definition/reportdef_04_accountcolumn_selector.png)
 
@@ -696,11 +696,11 @@ Each CALCULATED line's formula is evaluated **twice** — once against the Curre
 | `{{PREFIX_LINE_CY}}`    | `_cyGlobal`              |
 | `{{PREFIX_LINE_PY}}`    | `_pyGlobal`              |
 
-Consequence: **you cannot mix periods inside a single formula.** A formula like `DB_CASH - DB_CASH_PY` does not work — `DB_CASH_PY` is not a valid global key and resolves to `0`.
+Consequence: **you cannot mix periods inside a single formula.** A formula like `DB_CASH - DB_CASH_PY` does not work — `DB_CASH_PY` is parsed as a Line Code named `CASH_PY`, which doesn't exist, so the engine **throws** `UnknownFormulaLineCode` and the run fails (it does not silently resolve to `0`).
 
 ### Requirements & caveats
 
-1. **All referenced definitions must be linked on the same Financial Report record.** If a formula token cannot be resolved, the engine **logs a warning via `PXTrace`** and returns `0` — the run still completes, but the affected placeholders will be wrong.
+1. **All referenced definitions must be linked on the same Financial Report record.** If a formula token cannot be resolved, the engine **throws** `UnknownFormulaLineCode` and the generation run **fails** (Status → `Failed`). It does not return `0` and continue — the failure is surfaced loudly rather than silently producing a wrong figure.
 2. **Unique prefixes.** Two definitions with the same Prefix cannot be linked to the same record. The save-time uniqueness check on FR101002 already prevents two definitions sharing a Prefix tenant-wide.
 3. **No circular references.** The engine runs topological sort (Kahn's algorithm) at the start of evaluation and raises a `CircularDependencyDetected` error.
 4. **Sort Order across definitions.** Sort Order is a pure presentation field — it never drives evaluation order.
@@ -1335,7 +1335,7 @@ The header is split into three column groups.
 | **Presentation Name** | yes  | Free-text identifier, max 225 chars. Shown in the records list and on the breadcrumb. |
 | **Description**       | no   | Short label, max 50 chars. |
 | **Current Year**      | yes  | Fiscal year. Selector lists distinct `FinYear` values from `FinPeriod` (latest first). |
-| **Financial Month**   | yes  | Month-of-year (`01`–`12`). Default `12` (December). Sets the period end of the FY-to-date window every linked Report Definition reads, **and** is fed into the `{MONTH}` token of every linked MBR Definition's Period Filter Template. |
+| **Financial Month**   | yes  | Month-of-year (`01`–`12`). Default `12`. The **fiscal-year START month** of the window every linked Report Definition reads (with Current Year as the FY *end* year), **and** the value fed into the `{MONTH}` token of every linked MBR Definition's Period Filter Template. For a calendar-year report set this to **January**. |
 
 #### Scope (middle)
 
@@ -1461,7 +1461,7 @@ For reference — what `SlideGenerationService.BuildMarkdownPreview` actually em
 
 1. **Header context block** — fiscal year, financial month formatted as "FY{Year} ({MonthName} {Year})", plus the Org / Branch / Ledger scope (or `N/A` when blank).
 2. **Audience / framing block** — the user-supplied `PresentationDescription`, plus a hard-coded set of "Generate a professional monthly financial report slide deck…" instructions for Gamma.
-3. **Data block** — one section per linked data source, with a heading per Column row. For VALUE rows: `**<Description>:** <formatted value>`. For MULTIROW rows: a markdown table with the configured `DisplayColumns`. For CALCULATED rows: `**<Description>:** <formula result>`. HEADING rows print as `### <Description>`.
+3. **Data block** — Report-Definition line items render as small `Period | Value` markdown tables (CY and PY rows). GI Data Sources render as bullet lists: VALUE / CALCULATED rows as `- **<Description>:** <value>`; MULTIROW rows as a parent bullet plus one nested `- Row N: <col>: <val>, …` bullet per ranked row (filtered by `DisplayColumns`) — **not** a markdown table. HEADING rows print as a section label.
 
 The full markdown is what goes to Gamma — it's also what you can hand-edit on the Presentation Markdown tab.
 
@@ -1484,7 +1484,7 @@ Produced by every visible line item on a [Report Definition (FR101002)](#chapter
 
 | Component | Source                                              | Examples                  |
 |-----------|-----------------------------------------------------|---------------------------|
-| `<Prefix>` | `FLRTReportDefinition.DefinitionPrefix`              | `BS`, `PL`, `CF`, `EQ`, `DEMO` |
+| `<Prefix>` | `FLRTReportDefinition.DefinitionPrefix`              | `BS`, `PL`, `CF`, `CU`, `DEMO` |
 | `<LineCode>` | `FLRTReportLineItem.LineCode`                      | `CASH`, `TOTAL_ASSETS`, `NI`, `GROSS_PROFIT` |
 | Period suffix | `_CY` or `_PY` *(constants in `Helper/Constants.cs`)* | `_CY`, `_PY` |
 
@@ -1495,7 +1495,7 @@ Produced by every visible line item on a [Report Definition (FR101002)](#chapter
 | `_CY`  | **Current Year** — fiscal-year-to-date through the end of the selected month, in the year picked on FR101000 / FR101003. |
 | `_PY`  | **Previous Year** — fiscal-year-to-date through the same month, in the previous fiscal year. |
 
-> No `_PM` suffix exists. If a template inherited from the v2.0 era still has `{{X_X_PM}}` tokens, they resolve to `0` in the Word document (and warn in the trace log).
+> No `_PM` suffix exists. If a template inherited from the v2.0 era still has `{{X_X_PM}}` tokens, they are rendered as `0` in the Word document (the same default-to-zero behaviour applied to any placeholder the engine doesn't produce). No trace warning is emitted for unmatched template placeholders.
 
 ### Examples
 
@@ -1598,11 +1598,11 @@ The formula is evaluated **twice** — once against the CY dictionary, once agai
 | Rule | Source |
 |------|--------|
 | **Case-insensitive lookup** — `{{BS_CASH_CY}}` matches `{{bs_cash_cy}}` and `{{Bs_Cash_Cy}}`. | `WordTemplateService` does case-insensitive Replace at merge time. |
-| **Unmatched placeholders → `0`** for numeric tokens, empty string for `{{CY}}` / `{{PY}}` when the year is null. The token text is replaced regardless. | `Helper/Messages.UnknownFormulaLineCode` (warning emitted to trace). |
-| **Maximum 1,000 placeholders per template** — enforced by `Constants.MaxPlaceholdersPerTemplate`. Templates exceeding this throw `Messages.TooManyPlaceholders` at generation time. | `Helper/Constants.cs:49`. |
+| **Unmatched placeholders → `0`** — any `{{...}}` token the engine never produced is silently replaced with `0`; no trace warning is emitted. `{{CY}}` / `{{PY}}` are always populated (never blank). | `WordTemplateService.PopulateTemplate` (defaults unknown keys to `"0"`). |
+| **No placeholder-count cap is enforced.** `Constants.MaxPlaceholdersPerTemplate` (1000) and `Messages.TooManyPlaceholders` are defined but **not referenced** anywhere in the generation path — there is no runtime limit and that error is never thrown. | `Helper/Constants.cs:49` (unused). |
 | **Document scope** — placeholders work in the document body, headers, footers, and all table cells. The merge service walks every paragraph. | `WordTemplateService.cs`. |
 | **Type each placeholder in one go in Word** — Word's auto-correct / spell-check sometimes splits `{{` or the underscore mid-typing, breaking the merge token. If a placeholder isn't replacing, retype the whole `{{...}}` token without pausing. | Word behaviour. |
-| **HEADING and invisible lines emit no placeholder**. | `FLRTReportLineItem.IsVisible`. |
+| **HEADING and invisible lines emit blank placeholders** — their `_CY` / `_PY` keys are written with an empty-string value (so they render blank, not `0`). | `ReportCalculationEngine.BuildPlaceholderMap`. |
 
 ## A.6 Quick Lookup — Where Each Placeholder Comes From
 
@@ -1618,11 +1618,11 @@ The formula is evaluated **twice** — once against the CY dictionary, once agai
 
 | Symptom                                         | Likely cause                                                                  | Fix                                              |
 |-------------------------------------------------|-------------------------------------------------------------------------------|--------------------------------------------------|
-| `{{X_Y_PM}}` left untouched in output           | Legacy `_PM` token; engine doesn't emit it.                                   | Replace with `{{X_Y_CY}}` and `{{X_Y_PY}}` columns. |
+| `{{X_Y_PM}}` rendered as `0` in output          | Legacy `_PM` token; engine doesn't emit it, so it hits the default-to-`0` path. | Replace with `{{X_Y_CY}}` and `{{X_Y_PY}}` columns. |
 | Placeholder shows `0` instead of expected value | Line Code typo, Prefix mismatch, or referenced definition not linked to record.| Verify the `<Prefix>_<LineCode>` matches a line on a linked definition. |
 | Placeholder shows `-` (single dash)             | The line was calculated but the value rounded to zero.                        | Expected — zero values render as `-` for readability. |
 | Placeholder shows `(1,234)` (parentheses)       | The line evaluated to a negative number.                                      | Expected — negatives render in parentheses, accounting style. |
-| `Trace warning: 'Formula references unknown key'` | Cross-definition reference where the other definition isn't linked.          | Add the missing definition to the FR101000 / FR101003 grid. |
+| Run **fails** with `Formula references unknown Line Code '<key>'…` | Cross-definition reference where the other definition isn't linked (the engine throws, it does not warn-and-zero). | Add the missing definition to the FR101000 / FR101003 grid, or fix the Line Code in the formula. |
 
 \newpage
 
@@ -1742,7 +1742,7 @@ Means the engine tried to parse a non-numeric value as a `decimal`.
 | Header dimension filters too narrow                           | Test Fetch with all four blank — values appearing means the filters are the problem. |
 | Wrong **Period Template** for the column type                 | Date columns with `Monthly` scope ignore the template; the engine uses period boundaries. Set Type = Date. |
 | Account-type sign normalization flipped the value             | Check the underlying GL data — credit-normal account types (L / I) get auto-flipped to positive. |
-| Cross-definition formula references a definition not linked    | Trace log shows `Formula references unknown key 'PFX_LINE'`. Add the missing definition to the FR101000 / FR101003 link grid. |
+| Cross-definition formula references a definition not linked    | Generation **fails** with `Formula references unknown Line Code 'PFX_LINE'`. Add the missing definition to the FR101000 / FR101003 link grid, or fix the typo. |
 
 ## B.7 Reset Status
 

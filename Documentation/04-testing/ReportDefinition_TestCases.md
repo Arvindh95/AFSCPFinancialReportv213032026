@@ -74,7 +74,7 @@ Each test case follows this structure:
 4. Click **Save**
 
 **Expected Result:**
-- Error displayed: *"Definition Code must be unique"*
+- Error displayed: *"Definition Code must be unique."*
 - Record not saved
 
 **Pass/Fail:** ___
@@ -94,7 +94,7 @@ Each test case follows this structure:
 4. Click **Save**
 
 **Expected Result:**
-- Error displayed: *"Prefix must be unique"*
+- Error displayed: *"Definition Prefix must be unique across all definitions. Another definition already uses this prefix."*
 - Record not saved
 
 **Pass/Fail:** ___
@@ -113,7 +113,7 @@ Each test case follows this structure:
 5. Repeat with Prefix: `BS-01` (hyphen)
 
 **Expected Result:**
-- All three attempts fail with error: *"Prefix must contain only letters and digits"*
+- All three attempts fail with error: *"Definition Prefix must contain letters and digits only — no spaces, underscores, or special characters."*
 
 **Pass/Fail:** ___
 **Notes:** ___
@@ -190,7 +190,7 @@ Each test case follows this structure:
 ---
 
 ### A-09: Column Mapping Selectors Bound to Selected GI
-**Objective:** Verify each of the 13 GI-column selectors lists only the columns of the GI chosen in **Generic Inquiry Name**.
+**Objective:** Verify each of the 12 GI-column selectors lists only the columns of the GI chosen in **Generic Inquiry Name**.
 
 **Prerequisites:** Two published GIs exist with different column sets (e.g. `AFS-Trial-Balance` and a clone with renamed columns).
 
@@ -270,7 +270,7 @@ Each test case follows this structure:
 4. Save
 
 **Expected Result:**
-- Error: *"Account From is required"*
+- Error: *"Account From is required for Account Range line types."*
 
 **Pass/Fail:** ___
 **Notes:** ___
@@ -287,7 +287,7 @@ Each test case follows this structure:
 4. Save
 
 **Expected Result:**
-- Error: *"Account To is required"*
+- Error: *"Account To is required for Account Range line types."*
 
 **Pass/Fail:** ___
 **Notes:** ___
@@ -864,7 +864,7 @@ Each test case follows this structure:
 3. Save
 
 **Expected Result:**
-- Error: *"Formula is required for Calculated lines"*
+- Error: *"Formula is required for Calculated line types."*
 
 **Pass/Fail:** ___
 **Notes:** ___
@@ -872,16 +872,15 @@ Each test case follows this structure:
 ---
 
 ### D-08: Formula References Unknown LineCode
-**Objective:** Verify graceful handling of missing reference.
+**Objective:** Verify an unresolved formula reference fails the run loudly (does not silently zero).
 
 **Steps:**
 1. Formula = `NONEXISTENT_CODE + REVENUE`
 2. Run report
 
 **Expected Result:**
-- `NONEXISTENT_CODE` resolves to `0`
-- Trace log shows warning: `Formula references unknown key 'BS_NONEXISTENT_CODE'. Defaulting to 0.`
-- No exception thrown
+- The engine **throws** `PXException` with message *"Formula references unknown Line Code 'BS_NONEXISTENT_CODE'. Ensure it is defined with a lower Sort Order."* (`Messages.UnknownFormulaLineCode`).
+- Generation **fails** — the record lands on Status `Failed`. The value does **not** default to `0`, and no partial/zeroed document is produced.
 
 **Pass/Fail:** ___
 **Notes:** ___
@@ -1117,7 +1116,7 @@ Each test case follows this structure:
 2. Save
 
 **Expected Result:**
-- Error: *"Line Code is required"*
+- Error: *"Line Code is required."*
 
 **Pass/Fail:** ___
 **Notes:** ___
@@ -1132,7 +1131,7 @@ Each test case follows this structure:
 2. Save
 
 **Expected Result:**
-- Error: *"Line Code must be unique within this definition"*
+- Error: *"Line Code must be unique within the same definition."*
 
 **Pass/Fail:** ___
 **Notes:** ___
@@ -1209,7 +1208,7 @@ Each test case follows this structure:
 **Objective:** Verify two linked definitions cannot share same prefix in a report.
 
 **Steps:**
-1. Open a Financial Report (FR101001)
+1. Open a Financial Report (FR101000)
 2. Add Definition Link for `BS` (prefix BS)
 3. Add another Definition Link for a definition that also has prefix `BS`
 4. Save

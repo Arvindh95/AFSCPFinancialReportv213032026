@@ -14,19 +14,19 @@ Use these to label your columns:
 
 ---
 
-## Section 1: Basic CY / PY / PM Placeholders
+## Section 1: Basic CY / PY Placeholders
 
-Every visible line item produces three placeholders.
+Every visible line item produces two placeholders — current year (`_CY`) and prior year (`_PY`). There is **no** `_PM` (prior-month) suffix; a `{{..._PM}}` token would simply render as `0`. For a month-over-month delta, subtract the two periods inside the template.
 
-| Line Item                 | Current Year        | Prior Year          | Prior Month         |
-| ------------------------- | ------------------- | ------------------- | ------------------- |
-| Cash and Equivalents      | {{DEMO_CASH_CY}}    | {{DEMO_CASH_PY}}    | {{DEMO_CASH_PM}}    |
-| Receivables               | {{DEMO_RECV_CY}}    | {{DEMO_RECV_PY}}    | {{DEMO_RECV_PM}}    |
-| Current Assets (Subtotal) | {{DEMO_CA_CY}}      | {{DEMO_CA_PY}}      | {{DEMO_CA_PM}}      |
-| Fixed Assets              | {{DEMO_FA_CY}}      | {{DEMO_FA_PY}}      | {{DEMO_FA_PM}}      |
-| Total Assets              | {{DEMO_TA_CY}}      | {{DEMO_TA_PY}}      | {{DEMO_TA_PM}}      |
-| Payables (Flip Sign)      | {{DEMO_PAYABLE_CY}} | {{DEMO_PAYABLE_PY}} | {{DEMO_PAYABLE_PM}} |
-| Total Liabilities         | {{DEMO_TL_CY}}      | {{DEMO_TL_PY}}      | {{DEMO_TL_PM}}      |
+| Line Item                 | Current Year        | Prior Year          |
+| ------------------------- | ------------------- | ------------------- |
+| Cash and Equivalents      | {{DEMO_CASH_CY}}    | {{DEMO_CASH_PY}}    |
+| Receivables               | {{DEMO_RECV_CY}}    | {{DEMO_RECV_PY}}    |
+| Current Assets (Subtotal) | {{DEMO_CA_CY}}      | {{DEMO_CA_PY}}      |
+| Fixed Assets              | {{DEMO_FA_CY}}      | {{DEMO_FA_PY}}      |
+| Total Assets              | {{DEMO_TA_CY}}      | {{DEMO_TA_PY}}      |
+| Payables (Flip Sign)      | {{DEMO_PAYABLE_CY}} | {{DEMO_PAYABLE_PY}} |
+| Total Liabilities         | {{DEMO_TL_CY}}      | {{DEMO_TL_PY}}      |
 
 ---
 

@@ -1,4 +1,4 @@
-# Connected Application Setup — OAuth2 Client Credentials
+# Connected Application Setup — OAuth2 Resource Owner Password Credentials
 
 This document describes how to create a Connected Application in Acumatica to obtain the **Client ID** and **Client Secret** required by the AFS Financial Report module.
 

@@ -22,7 +22,7 @@ All documentation for the AFS Financial Report module (Acumatica 2025 R2 customi
 3. [Report Definition Setup](01-setup/ReportDefinition_Setup.md) — define statements (FR101002).
 4. [MBR Definition Setup](01-setup/MBRDefinition_Setup.md) — Management Business Report definitions backed by any Generic Inquiry (FR101004).
 5. [Financial Report Generation](02-generation/FinancialReport_Generation.md) — produce `.docx` (FR101000).
-6. [MBR Report Generation](02-generation/MBRReport_Generation.md) — produce the AI-driven Monthly Board Report `.pptx` / `.docx` (FR101003).
+6. [MBR Report Generation](02-generation/MBRReport_Generation.md) — produce the AI-driven Monthly Board Report `.pptx` via Gamma (FR101003).
 7. [Placeholder Reference](03-reference/Placeholder_Reference.md) and [Troubleshooting](03-reference/Troubleshooting.md) as needed.
 8. [Report Definition Test Cases](04-testing/ReportDefinition_TestCases.md) — manual QA catalogue.
 

@@ -16,7 +16,7 @@ This document describes how to generate an **AI-driven Monthly Board Report** (M
 ## Prerequisites
 
 - Tenant credentials saved in [Tenant Credentials Setup (FR101001)](../01-setup/TenantCredentials_Setup.md), including the **Presentation API Key** (Gamma) field. The Generate Presentation action throws `Presentation API Key is not configured` if it's blank.
-- At least one [MBR Definition (FR101004)](../01-setup/MBRDefinition_Setup.md) marked **Active**, with at least one column row that produces a placeholder. Optionally, a [Report Definition (FR101002)](../01-setup/ReportDefinition_Setup.md) can also be linked at the database level — see [Linking Report Definitions](#linking-report-definitions-legacy-database-only).
+- At least one linked data source: an **Active** [MBR Definition (FR101004)](../01-setup/MBRDefinition_Setup.md) and/or a [Report Definition (FR101002)](../01-setup/ReportDefinition_Setup.md). If neither is linked, generation fails with *"No Report Definitions or GI Data Sources are linked to this presentation."* (Generation does **not** separately check that a data source has placeholder-producing columns.) Report Definitions are linked at the database level — see [Linking Report Definitions](#linking-report-definitions-legacy-database-only).
 - Fiscal periods open for the **Current Year** you intend to report on. The selector only lists years that exist in `FinPeriod`.
 
 ---
@@ -59,7 +59,7 @@ The header is split into three column groups.
 | **Presentation Name** | yes  | Free-text identifier, max 225 chars. Shown in the records list and on the breadcrumb. |
 | **Description**       | no   | Short label, max 50 chars. |
 | **Current Year**      | yes  | Fiscal year. Selector lists distinct `FinYear` values from `FinPeriod` (latest first). |
-| **Financial Month**   | yes  | Month-of-year (`01`–`12`). Default `12` (December). Sets the period end of the FY-to-date window every linked Report Definition reads, **and** is fed into the `{MONTH}` token of every linked MBR Definition's Period Filter Template. |
+| **Financial Month**   | yes  | Month-of-year (`01`–`12`). Default `12`. The **fiscal-year START month** of the window every linked Report Definition reads (with Current Year as the FY *end* year), **and** the value fed into the `{MONTH}` token of every linked MBR Definition's Period Filter Template. For a calendar-year report set this to **January**. |
 
 #### Scope (middle)
 
@@ -104,7 +104,7 @@ Double-click the data source you want. The grid populates with three columns:
 
 ![PURCHASEORDER linked — grid shows Prefix = PO, Display Order = 0](../images/mbr_report/mbrgen_05_datasource_linked.png)
 
-> **Multi-source presentations.** The markdown builder concatenates the placeholder dictionaries from every linked data source before composing the Gamma prompt. A presentation can mix, say, a `PURCHASEORDER` data source (Prefix `PO`) and a `SALESORDER` data source (Prefix `SO`) — every placeholder lands in one merged dictionary. Two data sources cannot share the same Prefix; the link save fails with `Prefix '<PO>' is already used by another linked definition in this report` if you try.
+> **Multi-source presentations.** The markdown builder concatenates the placeholder dictionaries from every linked data source before composing the Gamma prompt. A presentation can mix, say, a `PURCHASEORDER` data source (Prefix `PO`) and a `SALESORDER` data source (Prefix `SO`) — every placeholder lands in one merged dictionary. Two data sources cannot collide on Prefix because each Prefix is already globally unique across all MBR Definitions (enforced on FR101004). Note: unlike the Report-Definition links, the GI Data Source link grid has **no** per-presentation duplicate-prefix validation of its own — uniqueness comes from the data-source records themselves.
 
 #### Linking Report Definitions (legacy / database-only)
 
@@ -157,7 +157,7 @@ You can navigate away from the screen during the run — Status updates the next
 
 ### Step 6 — Download the Presentation
 
-Once Status = `Ready to Download`, click **Download Presentation**. The browser downloads the merged `.pptx`. The Gamma deck is fully editable in PowerPoint — Gamma generates the slide layouts, charts, and bullet structure from the markdown prompt, but doesn't lock the output.
+Once Status = `Ready to Download`, click **Download Presentation**. The browser downloads the generated `.pptx`. The Gamma deck is fully editable in PowerPoint — Gamma generates the slide layouts, charts, and bullet structure from the markdown prompt, but doesn't lock the output.
 
 ---
 
@@ -212,7 +212,7 @@ For reference — what `SlideGenerationService.BuildMarkdownPreview` actually em
 
 1. **Header context block** — fiscal year, financial month formatted as "FY{Year} ({MonthName} {Year})", plus the Org / Branch / Ledger scope (or `N/A` when blank).
 2. **Audience / framing block** — the user-supplied `PresentationDescription`, plus a hard-coded set of "Generate a professional monthly financial report slide deck…" instructions for Gamma.
-3. **Data block** — one section per linked data source, with a heading per Column row. For VALUE rows: `**<Description>:** <formatted value>`. For MULTIROW rows: a markdown table with the configured `DisplayColumns`. For CALCULATED rows: `**<Description>:** <formula result>`. HEADING rows print as `### <Description>` between the value rows.
+3. **Data block** — Report-Definition line items render as small `Period | Value` markdown tables (CY and PY rows). GI Data Sources render as bullet lists: for VALUE / CALCULATED rows, `- **<Description>:** <value>`; for MULTIROW rows, a parent bullet plus one nested `- Row N: <col>: <val>, …` bullet per ranked row (filtered by `DisplayColumns`) — **not** a markdown table. HEADING rows print as a section label.
 
 The full markdown is what goes to Gamma — it's also what you can hand-edit on the Presentation Markdown tab. Inspect the populated markdown after a Preview Markdown run to see exactly what your tenant's data looks like.
 
@@ -227,7 +227,8 @@ The full markdown is what goes to Gamma — it's also what you can hand-edit on 
 | `Presentation API Key is not configured. Please enter your API Key in the Tenant Credentials screen.` | Generate Presentation clicked but the tenant's `GammaApiKey` is blank on FR101001. | Add the Gamma key on Tenant Credentials and Save. |
 | `A presentation generation process is already running for this report.`        | Generate Presentation clicked while another run is `In Progress`.                              | Wait for the run to finish, or click **Reset Status** if it's stuck. |
 | `No presentation is available for download. Please generate a presentation first.` | Download Presentation clicked but `SlideGeneratedFileID` is null.                          | Run Generate Presentation, wait for `Ready to Download`, then download. |
-| `Prefix 'XX' is already used by another linked definition in this report.`     | Two data source links with overlapping prefixes (caught at save time).                         | Delete one of the duplicate rows; pick another data source whose Prefix is unique. |
+| `Prefix 'XX' is already used by another linked definition in this report.`     | Two **Report Definition** links with the same prefix (this check applies to the Report Definition link grid, not the GI Data Source grid).  | Delete one of the duplicate rows; pick another definition whose Prefix is unique. |
+| `The following visible line items are missing descriptions: …`                 | A linked **Report Definition** has visible line items with blank Descriptions (checked on Preview Markdown and Generate Presentation).         | Fill in a Description on each listed line item in FR101002. |
 | `Tenant mapping not found.`                                                    | The presentation was created under a Company that has no row in `FLRTTenantCredentials`.       | Add a Tenant Credentials row for that company on FR101001. |
 
 ---

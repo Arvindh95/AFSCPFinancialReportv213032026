@@ -64,7 +64,7 @@ Enter the four required header fields:
 | `CF`  | Cash Flow            |
 | `CU`  | Custom               |
 
-![Report Type dropdown open — 5 values](../images/report_definition/reportdef_03_reporttype_dropdown.png)
+![Report Type dropdown open — 4 values](../images/report_definition/reportdef_03_reporttype_dropdown.png)
 
 Also visible on the same header row:
 
@@ -110,7 +110,7 @@ This section tells the engine *which column in the chosen GI* holds each balance
 | **Organization Column**  | `OrganizationID`    | Organization code column. Referenced by **Organization Filter**.                         |
 | **Ledger Column**        | `LedgerID`          | Ledger code column. Referenced by **Ledger Filter**.                                     |
 
-> If you clone or customize the stock GI, rename these columns here to match the new field names. The 13 mapping fields default to the stock `AFS-Trial-Balance` column names — save is **not** blocked if you blank one out, but the engine will fall back to the default name (`Account`, `EndingBalance`, …) at fetch time. Set them explicitly when working against a renamed GI.
+> If you clone or customize the stock GI, rename these columns here to match the new field names. The 12 mapping fields default to the stock `AFS-Trial-Balance` column names — save is **not** blocked if you blank one out, but the engine will fall back to the default name (`Account`, `EndingBalance`, …) at fetch time. Set them explicitly when working against a renamed GI.
 
 ![Account Column selector open](../images/report_definition/reportdef_04_accountcolumn_selector.png)
 
@@ -437,7 +437,7 @@ Description     : Demo Profit & Loss
 Report Type     : Profit & Loss
 Active          : ✓
 Generic Inquiry : AFS-Trial-Balance
-(all 13 column mappings default to stock TrialBalance names — see Mini BS above)
+(all 12 column mappings default to stock TrialBalance names — see Mini BS above)
 Rounding Level  : UNITS
 Decimal Places  : 0
 ```
@@ -501,7 +501,7 @@ Formula tokens never include a period suffix — they address a Line Code only. 
 
 1. Tries each known Prefix (longest first) — if the token starts with `<Prefix>_`, treat the token as already fully qualified (`PL_NI` → global key `PL_NI`).
 2. Otherwise treat as implicit — prepend the **current definition's** Prefix (`NI` inside the PL definition → `PL_NI`).
-3. If the resulting global key is missing from the dictionary → warning logged, value defaults to `0`.
+3. If the resulting global key is missing from the dictionary → the engine **throws** `UnknownFormulaLineCode` ("Formula references unknown Line Code '<key>'…") and the generation run **fails**. It does **not** default to `0` — a silent zero in a financial figure is treated as worse than a hard failure.
 
 ### Automatic CY / PY evaluation
 
@@ -519,7 +519,7 @@ That is how the two placeholder forms are produced:
 | `{{PREFIX_LINE_CY}}`    | `_cyGlobal`              |
 | `{{PREFIX_LINE_PY}}`    | `_pyGlobal`              |
 
-Consequence: **you cannot mix periods inside a single formula.** A formula like `DB_CASH - DB_CASH_PY` does not work — `DB_CASH_PY` is not a valid global key and resolves to `0`. Whatever period the outer evaluation pass is running, every token is looked up against that same period's dictionary.
+Consequence: **you cannot mix periods inside a single formula.** A formula like `DB_CASH - DB_CASH_PY` does not work — `DB_CASH_PY` is parsed as a Line Code named `CASH_PY`, which doesn't exist, so the engine **throws** `UnknownFormulaLineCode` and the run fails (it does not silently resolve to `0`). Whatever period the outer evaluation pass is running, every token is looked up against that same period's dictionary.
 
 > **Rule.** Write formulas in terms of Line Codes only (`DB_CASH`, `DP_NI`). The engine picks the right dictionary automatically on each pass. Both output placeholders (`_CY` and `_PY`) drop out of that for free.
 
@@ -661,7 +661,7 @@ Values for each of the two periods drop out automatically from the 2-pass evalua
 
 ### Requirements & caveats
 
-1. **All referenced definitions must be linked on the same Financial Report record.** The Financial Report screen does not auto-add definitions; you link them explicitly in the **Report Definitions** grid. If a formula token cannot be resolved (the referenced Prefix is unknown, or the LineCode does not exist on the linked definition), the engine **logs a warning via `PXTrace`** and returns `0` for that token — the run still completes with Status `Ready to Download`, but the affected placeholders will be wrong. Always check the trace log after a run that references cross-definition tokens for the first time.
+1. **All referenced definitions must be linked on the same Financial Report record.** The Financial Report screen does not auto-add definitions; you link them explicitly in the **Report Definitions** grid. If a formula token cannot be resolved (the referenced Prefix is unknown, or the LineCode does not exist on the linked definition), the engine **throws** `UnknownFormulaLineCode` and the generation run **fails** (Status → `Failed`). It does not return `0` and continue — so a missing cross-definition reference is surfaced loudly rather than silently producing a wrong figure. Link every referenced definition before generating.
 2. **Unique prefixes.** Two definitions with the same Prefix cannot be linked to the same record — the resolver would be ambiguous. The save-time uniqueness check on FR101002 already prevents two definitions sharing a Prefix tenant-wide, so this is enforced at the source.
 3. **No circular references.** `CF_OP_CASH` may reference `PL_NI`, but `PL_NI` cannot in turn reference `CF_*`. The engine runs topological sort (Kahn's algorithm) at the start of evaluation and raises a `CircularDependencyDetected` error listing the offending Line Codes; break the cycle by restructuring formulas or by demoting a shared computation into one of the definitions.
 4. **Sort Order across definitions.** Sort Order is a pure presentation field — it never drives evaluation order. Within a single definition *and* across definitions, the engine builds a global dependency graph from all formulas / parent-child subtotals and evaluates in topological order. Write formulas in any order; the engine will compute inputs before dependents automatically.
@@ -696,7 +696,7 @@ Save (`Ctrl+S`) to persist the definition and all line items. The graph runs the
 Validation that is **not** enforced at save (but will bite at generation time):
 
 - **Description on visible lines.** A visible line with a blank Description emits an empty label in the markdown output — ugly but not blocked. Fill it in manually.
-- **Formula token resolvability.** Unknown tokens are not detected at save. They surface at generation as a `PXTrace` warning and a `0` value (see [Cross-Definition Formulas — Requirements & caveats](#requirements--caveats)).
+- **Formula token resolvability.** Unknown tokens are not detected at save. They surface at generation as a thrown `UnknownFormulaLineCode` error that **fails the run** — not a warning-and-zero (see [Cross-Definition Formulas — Requirements & caveats](#requirements--caveats)).
 - **Circular dependencies.** Detected only at generation time, by the topological sort. Error surfaces as `CircularDependencyDetected`.
 
 ---

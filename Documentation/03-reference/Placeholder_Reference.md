@@ -17,7 +17,7 @@ Produced by every visible line item on a [Report Definition (FR101002)](../01-se
 
 | Component | Source                                              | Examples                  |
 |-----------|-----------------------------------------------------|---------------------------|
-| `<Prefix>` | `FLRTReportDefinition.DefinitionPrefix`              | `BS`, `PL`, `CF`, `EQ`, `DEMO` |
+| `<Prefix>` | `FLRTReportDefinition.DefinitionPrefix`              | `BS`, `PL`, `CF`, `CU`, `DEMO` |
 | `<LineCode>` | `FLRTReportLineItem.LineCode`                      | `CASH`, `TOTAL_ASSETS`, `NI`, `GROSS_PROFIT` |
 | Period suffix | `_CY` or `_PY` *(constants in `Helper/Constants.cs`)* | `_CY`, `_PY` |
 
@@ -28,7 +28,7 @@ Produced by every visible line item on a [Report Definition (FR101002)](../01-se
 | `_CY`  | **Current Year** — fiscal-year-to-date through the end of the selected month, in the year picked on FR101000 / FR101003. |
 | `_PY`  | **Previous Year** — fiscal-year-to-date through the same month, in the previous fiscal year. |
 
-> No `_PM` suffix exists. If a template inherited from the v2.0 era still has `{{X_X_PM}}` tokens, they resolve to `0` in the Word document (and warn in the trace log).
+> No `_PM` suffix exists. If a template inherited from the v2.0 era still has `{{X_X_PM}}` tokens, they are rendered as `0` in the Word document (the same default-to-zero behaviour applied to any placeholder the engine doesn't produce). No trace warning is emitted for unmatched template placeholders.
 
 ### Examples
 
@@ -40,11 +40,13 @@ Produced by every visible line item on a [Report Definition (FR101002)](../01-se
 | `{{PL_NI_PY}}`           | P&L Net Income, prior year.                          |
 | `{{CF_OP_CASH_CY}}`      | Cash Flow definition, `OP_CASH` line, current.       |
 
-### Lines that do **not** emit placeholders
+### Lines that emit **blank** placeholders
 
-- **`HEADING` lines** — display-only. Used to print section labels in the markdown preview; they emit no key/value into the merge dictionary.
-- **Lines with `Visible = false`** — still calculated (other formulas can reference them) but no `_CY` / `_PY` keys are written.
-- **`SUBTOTAL` / `CALCULATED` lines with `Visible = false`** — same: internal value only.
+These lines still emit `_CY` / `_PY` keys, but with an **empty-string value** (the engine writes the key as `""` in `BuildPlaceholderMap`). So a `{{PFX_X_CY}}` placeholder referencing one of them renders **blank**, not `0` — the empty-string emission is exactly what prevents the unknown-placeholder default-to-`0`.
+
+- **`HEADING` lines** — display-only section labels; their `_CY` / `_PY` keys are emitted as empty strings.
+- **Lines with `Visible = false`** — still calculated so other formulas / subtotals can reference them, but their `_CY` / `_PY` keys are emitted as empty strings.
+- **`SUBTOTAL` / `CALCULATED` lines with `Visible = false`** — same: computed internally, emitted blank.
 
 ---
 
@@ -57,7 +59,7 @@ Two convenience tokens added to the dictionary at the end of every report run by
 | `{{CY}}`    | The current year as a 4-digit string | `2026`  |
 | `{{PY}}`    | The previous year as a 4-digit string | `2025`  |
 
-> Source: `ReportGenerationService.cs` lines 176–177 — `finalPlaceholders[Constants.CurrentYearSuffix] = currYear;` and the matching previous-year line.
+> Source: `ReportGenerationService.cs` lines 181–182 — `finalPlaceholders[Constants.CurrentYearSuffix] = currYear;` and the matching previous-year line. `currYear` falls back to the current system year if **Current Year** is unset, so these tokens are always populated (never blank/null).
 
 Use in column headers and section labels:
 
@@ -109,7 +111,7 @@ Each ranked row produces one placeholder **per GI column** in the row:
 | `{{PO_TOP_VENDORS_2_VendorName}}`        | Rank-2 row.                                                  |
 | `{{PO_TOP_VENDORS_10_OrderTotal}}`       | Rank-10 row, OrderTotal column.                              |
 
-Rank goes from `1` to the **Row Limit** configured on the column row (default 10). Word templates referencing a rank higher than `Row Limit` get an empty string.
+Rank goes from `1` to the **Row Limit** configured on the column row (default 10). A placeholder referencing a rank higher than `Row Limit` (or a GI column excluded by `DisplayColumns`) is never produced by the engine, so it falls to the unknown-placeholder default and renders as `0` (not blank).
 
 ### 3c. Calculated (`LineType = CALCULATED`)
 
@@ -143,11 +145,11 @@ The formula is evaluated **twice** — once against the CY dictionary, once agai
 | Rule | Source |
 |------|--------|
 | **Case-insensitive lookup** — `{{BS_CASH_CY}}` matches `{{bs_cash_cy}}` and `{{Bs_Cash_Cy}}`. | `WordTemplateService` does case-insensitive Replace at merge time. |
-| **Unmatched placeholders → `0`** for numeric tokens, empty string for `{{CY}}` / `{{PY}}` when the year is null. The token text is replaced regardless. | `Helper/Messages.UnknownFormulaLineCode` (warning emitted to trace). |
-| **Maximum 1,000 placeholders per template** — enforced by `Constants.MaxPlaceholdersPerTemplate`. Templates exceeding this throw `Messages.TooManyPlaceholders` at generation time. | `Helper/Constants.cs:49`. |
+| **Unmatched placeholders → `0`** — any `{{...}}` token in the template that the engine never produced is silently replaced with `0`. No trace warning is emitted for this. `{{CY}}` / `{{PY}}` are always populated (never blank). | `WordTemplateService.PopulateTemplate` (defaults unknown keys to `"0"`). |
+| **No placeholder-count cap is enforced.** `Constants.MaxPlaceholdersPerTemplate` (1000) and `Messages.TooManyPlaceholders` are defined but **not referenced** anywhere in the generation path — there is currently no runtime limit and `TooManyPlaceholders` is never thrown. | `Helper/Constants.cs:49` (unused). |
 | **Document scope** — placeholders work in the document body, headers, footers, and all table cells. The merge service walks every paragraph. | `WordTemplateService.cs`. |
 | **Type each placeholder in one go in Word** — Word's auto-correct / spell-check sometimes splits `{{` or the underscore mid-typing, breaking the merge token. If a placeholder isn't replacing, retype the whole `{{...}}` token without pausing. | Word behaviour, not a project rule. |
-| **HEADING and invisible lines emit no placeholder** — see [§ 1 — Lines that do not emit placeholders](#lines-that-do-not-emit-placeholders). | `FLRTReportLineItem.IsVisible`. |
+| **HEADING and invisible lines emit blank placeholders** (empty-string value, not absent) — see [§ 1 — Lines that emit blank placeholders](#lines-that-emit-blank-placeholders). | `ReportCalculationEngine.BuildPlaceholderMap`. |
 
 ---
 
@@ -167,11 +169,10 @@ The formula is evaluated **twice** — once against the CY dictionary, once agai
 
 | Symptom                                         | Likely cause                                                                  | Fix                                              |
 |-------------------------------------------------|-------------------------------------------------------------------------------|--------------------------------------------------|
-| `{{X_Y_PM}}` left untouched in output           | Legacy `_PM` token; engine doesn't emit it.                                   | Replace with `{{X_Y_CY}}` and `{{X_Y_PY}}` columns; compute the month delta inside the template if needed. |
+| `{{X_Y_PM}}` rendered as `0` in output          | Legacy `_PM` token; engine doesn't emit it, so it hits the default-to-`0` path. | Replace with `{{X_Y_CY}}` and `{{X_Y_PY}}` columns; compute the month delta inside the template if needed. |
 | Placeholder shows `0` instead of expected value | Line Code typo, Prefix mismatch, or referenced definition not linked to record.| Verify the `<Prefix>_<LineCode>` matches a line on a linked definition (FR101002) or column on a linked data source (FR101004). |
 | Placeholder shows `-` (single dash)             | The line was calculated but the value rounded to zero.                        | Expected — zero values render as `-` for readability. |
 | Placeholder shows `(1,234)` (parentheses)       | The line evaluated to a negative number.                                      | Expected — negatives render in parentheses, accounting style. |
-| `Trace warning: 'Formula references unknown key'` | Cross-definition reference where the other definition isn't linked.          | Open FR101000 / FR101003 and add the missing definition to the Definitions / Data Sources grid. |
-| `Trace error: 'Template contains N placeholders. Maximum allowed is 1000'` | Template has more than `Constants.MaxPlaceholdersPerTemplate` tokens.       | Split into multiple report records or consolidate placeholders. |
+| Run **fails** with `Formula references unknown Line Code '<key>'…` | A `CALCULATED` Report Definition formula references a Line Code/prefix that doesn't exist on a linked definition. The engine **throws** (it does not warn-and-zero) and the run lands on `Failed`. | Open FR101000 / FR101003 and add the missing definition, or fix the Line Code in the formula. |
 
 For a full error catalogue see [Troubleshooting](Troubleshooting.md).

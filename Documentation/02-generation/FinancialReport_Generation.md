@@ -50,7 +50,7 @@ The header is split into two column groups. The left group identifies the report
 | **Template Name**  | yes      | `BS Annual Report 2024`          | Free-text code identifying this report run, up to 225 chars. Shown in the FR401000 list and in the selector on downstream screens. Not the same thing as the Word filename — this is the *record* name.                           |
 | **Description**    | no       | `Balance Sheet for December 2024`| Free-text label, up to 50 chars.                                                                                                                                                                                                   |
 | **Current Year**   | yes      | `2024`                           | Fiscal year the report runs for. The dropdown is populated from distinct `FinPeriod.FinYear` values, sorted descending.                                                                                                            |
-| **Financial Month**| yes      | `December`                       | Month-of-year (`01`–`12`). Defaults to `12` (December). Sets the **period end** for the fiscal-year-to-date window every linked Definition reads (FY start → end of selected month). Same window is used for the `_PY` pass against the prior year. |
+| **Financial Month**| yes      | `January`                        | Month-of-year (`01`–`12`). The **fiscal-year START month**. With **Current Year** as the year the fiscal year *ends*, the FY runs from this month through the month before it in Current Year (e.g. `August` + `2025` → FY Aug 2024 → Jul 2025). For a standard calendar-year (Jan–Dec) report set this to **January**. The field default is `12`, which yields a Dec–Nov fiscal year, not a calendar year. |
 | **Organization**   | no       | `PRODUCTS`                       | Optional filter. Blank = all organizations the tenant can see. Selector reads `Organization.OrganizationCD`.                                                                                                                       |
 | **Branch**         | no       | `PRODWHOLE`                      | Optional filter. Blank = all branches. Selector reads `Branch.BranchCD`.                                                                                                                                                           |
 | **Ledger**         | no       | `ACTUAL`                         | Optional filter. Blank = all ledgers. Selector reads `Ledger.LedgerCD`, description `Ledger.Descr`.                                                                                                                                |
@@ -68,14 +68,14 @@ Click the magnifier next to **Current Year** to open the selector. It shows ever
 
 ### Step 5 — Pick the Financial Month
 
-**Financial Month** is a fixed dropdown (`January` … `December`). It defines the **period end** of the fiscal-year-to-date window the engine reads. Every line item in every linked Definition resolves twice — once for `_CY`, once for `_PY` — against this same FY-to-date window:
+**Financial Month** is a fixed dropdown (`January` … `December`) and is the **fiscal-year START month**. Together with **Current Year** (the year the fiscal year *ends*) it defines the full fiscal-year window the engine reads. Every line item in every linked Definition resolves twice — once for `_CY`, once for `_PY`:
 
-- `_CY` — fiscal-year-to-date through end of the selected month, in the **Current Year**.
-- `_PY` — fiscal-year-to-date through end of the same month, in the **previous fiscal year**.
+- `_CY` — the fiscal year that **ends** in Current Year. It starts in the selected Financial Month and ends the month before it (e.g. Financial Month `August`, Current Year `2025` → Aug 2024 → Jul 2025). Point-in-time balances (Ending/Beginning) are taken at the FY-end period; YTD types (Debit/Credit/Movement) are summed across the whole FY.
+- `_PY` — the same window shifted back one fiscal year.
 
 There is no single-period (month-only) placeholder. If a month-only delta is needed, compute it inside the Word template (`{{PFX_X_CY}} - {{PFX_X_PY}}`) — formulas inside a Definition cannot mix periods.
 
-Default is `December` (month `12`) so annual statements need no change.
+> **Calendar-year reports:** set Financial Month = **January** (January start → December end = Jan–Dec). The field's stored default is `12` (December), which produces a **Dec–Nov** fiscal year — change it to January for a normal calendar-year statement.
 
 ![Financial Month dropdown open](../images/report_generation/reportgen_03_month_dropdown.png)
 
@@ -150,7 +150,7 @@ The merge engine concatenates the placeholder dictionaries from every linked def
 
 ### Step 9 — Save
 
-Press `Ctrl+S`. The graph does **not** validate header completeness at save time — a record with blank Template Name / Current Year / no linked Definition will persist. Validation is deferred to **Generate Report**, which throws if Template Name is missing, no Definition is linked, or no `*FRTemplate*.docx` file is attached. Fill the header before clicking Generate to avoid an immediate failure.
+Press `Ctrl+S`. The graph does **not** validate header completeness at save time — a record with blank Template Name / Current Year / no linked Definition will persist. Validation is deferred to **Generate Report**. Note there is **no** "Template Name is required" check; the pre-flight checks that actually block generation are: a record is selected, it has a saved `ReportID`, Status is not already `In Progress`, a file/note is attached, and at least one Report Definition is linked. (The `*FRTemplate*` filename and GI-name checks happen at the start of the background job — see below.) Fill the header before clicking Generate to avoid a failed run.
 
 ---
 
@@ -164,13 +164,17 @@ Queues a background job that reads the GL data for the chosen period, evaluates 
 
 Status immediately transitions to `In Progress`. The job runs under `PXLongOperation` with a 15-minute timeout; you can navigate away from the screen and come back — Status will update on refresh.
 
-**Pre-flight checks** (all run before the background job starts — see [Troubleshooting](../03-reference/Troubleshooting.md#report-generation-errors-fr101000)):
+**Pre-flight checks**, run on the UI thread *before* the background job starts (see [Troubleshooting](../03-reference/Troubleshooting.md#report-generation-errors-fr101000)):
 
 - A record is loaded and saved (has a `ReportID`).
-- A `.docx` is attached via the Files panel.
+- A file/note is attached (the record has a `NoteID`).
 - Status is not currently `In Progress`.
-- **At least one Report Definition is linked** on the **Report Definitions** tab. Without this the job would silently produce a `.docx` full of zeros.
-- The **GI Name** on every linked Definition resolves to a published GI in this tenant. A 1-row probe runs against the GI before the parallel fetch tasks fan out, so a mistyped or unpublished GI name fails immediately with a clear message rather than a generic OData error.
+- **At least one Report Definition is linked** on the **Report Definitions** tab. This check exists precisely so the job can't silently produce a `.docx` full of zeros — generation is blocked, not run.
+
+**Checks that run at the start of the background job** (after Status has already flipped to `In Progress`; a failure here sets Status → `Failed`):
+
+- The attached file's name contains `FRTemplate` and its content is retrievable.
+- The **GI Name** on every linked Definition resolves to a published GI in this tenant. A 1-row probe runs against the GI before the parallel fetch tasks fan out, so a mistyped or unpublished GI name fails the run with a clear message rather than a generic OData error.
 
 ### Download Report
 
