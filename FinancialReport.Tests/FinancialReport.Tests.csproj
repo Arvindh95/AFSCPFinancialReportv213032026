@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>FinancialReport.Tests</AssemblyName>
+    <RootNamespace>FinancialReport.Tests</RootNamespace>
+    <!-- PX.* assemblies are NOT copied locally; they are resolved at runtime
+         from the Acumatica Bin folder by PxAssemblyResolver (see AssemblyResolver.cs). -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AFSCPFinancialReportv213032026\AFSCPFinancialReportv213032026.csproj" />
+  </ItemGroup>
+
+  <!-- Compile-time references to the Acumatica assemblies whose types appear in the
+       method signatures under test (e.g. PXBqlTable base of the DACs). Private=False
+       so they are not copied to the test output; the runtime resolver loads them. -->
+  <ItemGroup>
+    <Reference Include="PX.Common">
+      <HintPath>..\..\..\..\Bin\PX.Common.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="PX.Data">
+      <HintPath>..\..\..\..\Bin\PX.Data.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="PX.Data.BQL.Fluent">
+      <HintPath>..\..\..\..\Bin\PX.Data.BQL.Fluent.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+
+</Project>

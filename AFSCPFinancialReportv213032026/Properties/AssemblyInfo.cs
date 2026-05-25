@@ -17,6 +17,9 @@ using System.Runtime.InteropServices;
 // COM, set the ComVisible attribute to true on that type.
 [assembly: ComVisible(false)]
 
+// Expose internal members to the unit test project (FinancialReport.Tests).
+[assembly: InternalsVisibleTo("FinancialReport.Tests")]
+
 // The following GUID is for the ID of the typelib if this project is exposed to COM
 [assembly: Guid("bb154e41-e6ba-48da-bf16-113ef7bbbc37")]
 

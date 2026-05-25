@@ -282,7 +282,7 @@ namespace FinancialReport.Services
         /// Returns a comparable sort key for a GI row property.
         /// Numeric strings sort as decimals; date strings sort as DateTime; others sort as string.
         /// </summary>
-        private IComparable GetSortValue(JToken row, string column)
+        internal IComparable GetSortValue(JToken row, string column)
         {
             string raw = row[column]?.ToString()?.Trim() ?? "";
             if (decimal.TryParse(raw, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal d))
@@ -296,7 +296,7 @@ namespace FinancialReport.Services
 
         #region Filter Building
 
-        private string BuildHeaderFilter(FLRTGIDataSource ds, string year, string month,
+        internal string BuildHeaderFilter(FLRTGIDataSource ds, string year, string month,
             string branch, string organization, string ledger)
         {
             var parts = new List<string>();
@@ -358,7 +358,7 @@ namespace FinancialReport.Services
         /// <summary>
         /// Builds a typed OData eq filter for a column based on its configured type.
         /// </summary>
-        private string BuildTypedFilter(string column, string type, string value)
+        internal string BuildTypedFilter(string column, string type, string value)
         {
             if (string.IsNullOrWhiteSpace(column) || string.IsNullOrWhiteSpace(value))
                 return null;
@@ -391,7 +391,7 @@ namespace FinancialReport.Services
         /// Monthly: Date ge '2026-01-01' and Date lt '2026-02-01'
         /// Yearly:  Date ge '2026-01-01' and Date lt '2027-01-01'
         /// </summary>
-        private string BuildDateRangeFilter(string column, string year, string month, string scope)
+        internal string BuildDateRangeFilter(string column, string year, string month, string scope)
         {
             if (!int.TryParse(year, out int y)) return null;
             int m = 1;
@@ -424,7 +424,7 @@ namespace FinancialReport.Services
 
         #region Row Filtering
 
-        private List<JToken> FilterRowsByKey(List<JToken> rows, string keyColumn, string keyFrom, string keyTo)
+        internal List<JToken> FilterRowsByKey(List<JToken> rows, string keyColumn, string keyFrom, string keyTo)
         {
             if (string.IsNullOrWhiteSpace(keyColumn)) return rows;
             if (string.IsNullOrWhiteSpace(keyFrom) && string.IsNullOrWhiteSpace(keyTo)) return rows;
@@ -444,7 +444,7 @@ namespace FinancialReport.Services
         /// Returns the set of column names referenced by a RowFilter expression so they can
         /// be added to the $select clause. Uses the same parse shape as ApplyRowFilter.
         /// </summary>
-        private static IEnumerable<string> ExtractRowFilterColumns(string rowFilter)
+        internal static IEnumerable<string> ExtractRowFilterColumns(string rowFilter)
         {
             if (string.IsNullOrWhiteSpace(rowFilter)) yield break;
             var conditions = Regex.Split(rowFilter.Trim(), @"\s+and\s+", RegexOptions.IgnoreCase);
@@ -462,7 +462,7 @@ namespace FinancialReport.Services
         /// Operators: eq, ne, gt, lt, ge, le, contains.
         /// Example: "Status eq 'Open' and Amount gt '1000' and Name contains 'Smith'"
         /// </summary>
-        private List<JToken> ApplyRowFilter(List<JToken> rows, string rowFilter)
+        internal List<JToken> ApplyRowFilter(List<JToken> rows, string rowFilter)
         {
             if (string.IsNullOrWhiteSpace(rowFilter)) return rows;
 
@@ -519,7 +519,7 @@ namespace FinancialReport.Services
 
         #region Aggregation
 
-        private object AggregateColumn(List<JToken> rows, FLRTGIDataSourceColumn col)
+        internal object AggregateColumn(List<JToken> rows, FLRTGIDataSourceColumn col)
         {
             string colType = col.ColumnType ?? FLRTGIDataSource.GIColumnType.Decimal;
             string aggFunc = col.AggregateFunction ?? FLRTGIDataSourceColumn.AggregateFunctionType.Sum;
@@ -554,7 +554,7 @@ namespace FinancialReport.Services
             }
         }
 
-        private decimal AggregateNumeric(List<JToken> rows, string column, string aggFunc)
+        internal decimal AggregateNumeric(List<JToken> rows, string column, string aggFunc)
         {
             var values = rows
                 .Select(r => r[column]?.ToObject<decimal?>() ?? 0m)
@@ -577,7 +577,7 @@ namespace FinancialReport.Services
             }
         }
 
-        private object AggregateBoolean(List<JToken> rows, string column, string aggFunc)
+        internal object AggregateBoolean(List<JToken> rows, string column, string aggFunc)
         {
             var values = rows
                 .Select(r =>
@@ -601,7 +601,7 @@ namespace FinancialReport.Services
             }
         }
 
-        private object AggregateDate(List<JToken> rows, string column, string aggFunc)
+        internal object AggregateDate(List<JToken> rows, string column, string aggFunc)
         {
             var dates = new List<DateTime>();
             foreach (var row in rows)
@@ -626,7 +626,7 @@ namespace FinancialReport.Services
             }
         }
 
-        private string AggregateString(List<JToken> rows, string column, string aggFunc)
+        internal string AggregateString(List<JToken> rows, string column, string aggFunc)
         {
             switch (aggFunc)
             {
@@ -646,7 +646,7 @@ namespace FinancialReport.Services
             }
         }
 
-        private object GetDefaultValue(string colType)
+        internal object GetDefaultValue(string colType)
         {
             switch (colType)
             {
@@ -672,7 +672,7 @@ namespace FinancialReport.Services
         /// all aliases it references are already resolved. Falls back to SortOrder on tie.
         /// Throws if a circular dependency is detected.
         /// </summary>
-        private List<FLRTGIDataSourceColumn> TopoSortCalculated(List<FLRTGIDataSourceColumn> cols)
+        internal List<FLRTGIDataSourceColumn> TopoSortCalculated(List<FLRTGIDataSourceColumn> cols)
         {
             var aliasSet = new HashSet<string>(cols.Select(c => c.ColumnAlias), StringComparer.OrdinalIgnoreCase);
             var deps = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
@@ -732,7 +732,7 @@ namespace FinancialReport.Services
         /// Supports: +, -, *, /, parentheses, and numeric literals.
         /// Example: "REVENUE - TOTAL_COST" or "(SALES + SERVICES) / ORDER_COUNT"
         /// </summary>
-        private decimal EvaluateFormula(string formula, Dictionary<string, object> values)
+        internal decimal EvaluateFormula(string formula, Dictionary<string, object> values)
         {
             if (string.IsNullOrWhiteSpace(formula)) return 0m;
 
@@ -761,7 +761,7 @@ namespace FinancialReport.Services
             }
         }
 
-        private decimal ConvertToDecimal(object value)
+        internal decimal ConvertToDecimal(object value)
         {
             if (value == null) return 0m;
             if (value is decimal d) return d;
@@ -776,7 +776,7 @@ namespace FinancialReport.Services
         /// <summary>
         /// Simple recursive-descent arithmetic evaluator for +, -, *, /, parentheses.
         /// </summary>
-        private decimal EvaluateArithmeticExpression(string expr)
+        internal decimal EvaluateArithmeticExpression(string expr)
         {
             expr = expr.Trim();
             int pos = 0;
@@ -784,7 +784,7 @@ namespace FinancialReport.Services
             return result;
         }
 
-        private decimal ParseExpression(string expr, ref int pos)
+        internal decimal ParseExpression(string expr, ref int pos)
         {
             decimal left = ParseTerm(expr, ref pos);
             while (pos < expr.Length)
@@ -800,7 +800,7 @@ namespace FinancialReport.Services
             return left;
         }
 
-        private decimal ParseTerm(string expr, ref int pos)
+        internal decimal ParseTerm(string expr, ref int pos)
         {
             decimal left = ParseFactor(expr, ref pos);
             while (pos < expr.Length)
@@ -816,7 +816,7 @@ namespace FinancialReport.Services
             return left;
         }
 
-        private decimal ParseFactor(string expr, ref int pos)
+        internal decimal ParseFactor(string expr, ref int pos)
         {
             SkipSpaces(expr, ref pos);
             if (pos >= expr.Length) return 0m;
@@ -855,7 +855,7 @@ namespace FinancialReport.Services
             return negative ? -val : val;
         }
 
-        private void SkipSpaces(string expr, ref int pos)
+        internal void SkipSpaces(string expr, ref int pos)
         {
             while (pos < expr.Length && expr[pos] == ' ') pos++;
         }
@@ -864,7 +864,7 @@ namespace FinancialReport.Services
 
         #region Value Formatting
 
-        private string FormatValue(object value, string colType, string formatString)
+        internal string FormatValue(object value, string colType, string formatString)
         {
             if (value == null) return "";
 

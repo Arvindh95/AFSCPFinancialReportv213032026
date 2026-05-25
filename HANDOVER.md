@@ -222,7 +222,11 @@ The last work cycle (`fix-review-findings-22052026`) closed a batch of correctne
 
 ## 10. Testing & verification
 
-- There is **no automated test project** in the solution. `TODO(handover):` confirm whether any external test harness exists.
+- **Automated unit tests:** `FinancialReport.Tests/` (xUnit, net48) — 60 tests covering the pure logic of `ReportCalculationEngine` (sign rules, balance-type selection, account-range comparison, the formula evaluator incl. precedence/parens/div-zero/unknown-token-throws, rounding/formatting, account-line summation) and `GIDataFetchService` (arithmetic evaluator, RowFilter operators, key-range filtering, aggregations, typed/date OData filter building, CALCULATED topo-sort).
+  - Run: `dotnet test FinancialReport.Tests/FinancialReport.Tests.csproj` (or via the solution).
+  - The tested methods are `internal` (exposed via `[InternalsVisibleTo("FinancialReport.Tests")]` in `AssemblyInfo.cs`); the engine helpers are `internal static` so they need no `PXGraph`.
+  - `AssemblyResolver.cs` registers a `[ModuleInitializer]` `AssemblyResolve` hook that loads the `PX.*` assemblies from the Acumatica `Bin` folder at test runtime (they are not copied into the test output). The Bin path is hardcoded to `C:\Program Files\Acumatica ERP\2025R2\Bin` — update it if the install moves.
+  - **Not covered (needs a `PXGraph`/DB):** `CalculateAll`, `ReportDataPipeline.BuildContext`, the OData HTTP fetch, Word/Gamma generation. These are integration paths; cover them with a test tenant or Acumatica's graph test harness if needed.
 - Manual verification tools built into the app:
   - **FR101004 → Test Fetch** runs a GI data source against live data and shows the resulting placeholder values in a dialog — use it to validate a data source before wiring it into a presentation.
   - **FR101004 → Detect Columns** confirms the GI is reachable and lists its real OData column names.

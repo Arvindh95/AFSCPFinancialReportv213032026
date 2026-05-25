@@ -442,7 +442,7 @@ namespace FinancialReport.Services
         // FORMULA DEPENDENCY EXTRACTION
         // ─────────────────────────────────────────────────────────────────
 
-        private HashSet<string> ExtractFormulaDependencies(
+        internal static HashSet<string> ExtractFormulaDependencies(
             string formula, string currentPrefix, HashSet<string> knownPrefixes)
         {
             var deps = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -474,7 +474,7 @@ namespace FinancialReport.Services
         /// Implicit: no known prefix detected
         ///   → "TOTAL_ASSETS" in a CF formula → resolved as "CF_TOTAL_ASSETS"
         /// </summary>
-        private string ResolveToken(string token, string currentPrefix, HashSet<string> knownPrefixes)
+        internal static string ResolveToken(string token, string currentPrefix, HashSet<string> knownPrefixes)
         {
             // Sort longest prefix first to avoid shorter prefix shadowing a longer one (e.g. PL vs PLS).
             foreach (string prefix in knownPrefixes.OrderByDescending(p => p.Length))
@@ -491,7 +491,7 @@ namespace FinancialReport.Services
         // ACCOUNT LINE CALCULATION
         // ─────────────────────────────────────────────────────────────────
 
-        private decimal CalculateAccountLine(FLRTReportLineItem line, FinancialApiData data, FinancialApiData openingData = null, FinancialApiData cumulativeData = null)
+        internal static decimal CalculateAccountLine(FLRTReportLineItem line, FinancialApiData data, FinancialApiData openingData = null, FinancialApiData cumulativeData = null)
         {
             if (data == null) return 0m;
             if (string.IsNullOrWhiteSpace(line.AccountFrom) || string.IsNullOrWhiteSpace(line.AccountTo))
@@ -578,7 +578,7 @@ namespace FinancialReport.Services
             return index;
         }
 
-        private decimal CalculateAccountLineFromDetail(FLRTReportLineItem line, List<FinancialPeriodData> detailRows, List<FinancialPeriodData> openingDetailRows = null, List<FinancialPeriodData> cumulativeDetailRows = null)
+        internal static decimal CalculateAccountLineFromDetail(FLRTReportLineItem line, List<FinancialPeriodData> detailRows, List<FinancialPeriodData> openingDetailRows = null, List<FinancialPeriodData> cumulativeDetailRows = null)
         {
             decimal total = 0m;
             int matched = 0;
@@ -659,7 +659,7 @@ namespace FinancialReport.Services
         // SIGN NORMALIZATION
         // ─────────────────────────────────────────────────────────────────
 
-        private decimal ApplyAccountTypeSign(decimal rawValue, string accountType)
+        internal static decimal ApplyAccountTypeSign(decimal rawValue, string accountType)
         {
             switch (accountType?.Trim())
             {
@@ -678,7 +678,7 @@ namespace FinancialReport.Services
         // BALANCE TYPE SELECTOR
         // ─────────────────────────────────────────────────────────────────
 
-        private decimal GetBalanceByType(FinancialPeriodData data, string balanceType)
+        internal static decimal GetBalanceByType(FinancialPeriodData data, string balanceType)
         {
             switch (balanceType?.ToUpper())
             {
@@ -726,7 +726,7 @@ namespace FinancialReport.Services
         // implicit prefix syntax.
         // ─────────────────────────────────────────────────────────────────
 
-        private decimal EvaluateFormula(
+        internal static decimal EvaluateFormula(
             string formula,
             string currentPrefix,
             HashSet<string> knownPrefixes,
@@ -753,7 +753,7 @@ namespace FinancialReport.Services
             }
         }
 
-        private List<string> TokenizeFormula(string formula)
+        internal static List<string> TokenizeFormula(string formula)
         {
             var tokens = new List<string>();
             foreach (Match m in FormulaTokenRegex.Matches(formula.Trim()))
@@ -761,7 +761,7 @@ namespace FinancialReport.Services
             return tokens;
         }
 
-        private decimal EvaluateTokens(
+        internal static decimal EvaluateTokens(
             List<string> tokens,
             string currentPrefix,
             HashSet<string> knownPrefixes,
@@ -771,7 +771,7 @@ namespace FinancialReport.Services
             return ParseExpression(tokens, ref pos, currentPrefix, knownPrefixes, globalValues);
         }
 
-        private decimal ParseExpression(
+        internal static decimal ParseExpression(
             List<string> tokens, ref int pos,
             string currentPrefix, HashSet<string> knownPrefixes,
             Dictionary<string, decimal> globalValues)
@@ -788,7 +788,7 @@ namespace FinancialReport.Services
             return result;
         }
 
-        private decimal ParseTerm(
+        internal static decimal ParseTerm(
             List<string> tokens, ref int pos,
             string currentPrefix, HashSet<string> knownPrefixes,
             Dictionary<string, decimal> globalValues)
@@ -816,7 +816,7 @@ namespace FinancialReport.Services
             return result;
         }
 
-        private decimal ParseFactor(
+        internal static decimal ParseFactor(
             List<string> tokens, ref int pos,
             string currentPrefix, HashSet<string> knownPrefixes,
             Dictionary<string, decimal> globalValues)
@@ -859,13 +859,13 @@ namespace FinancialReport.Services
         // ACCOUNT RANGE COMPARISON
         // ─────────────────────────────────────────────────────────────────
 
-        private bool IsAccountInRange(string account, string from, string to)
+        internal static bool IsAccountInRange(string account, string from, string to)
         {
             return CompareAccountCodes(account, from) >= 0
                 && CompareAccountCodes(account, to)   <= 0;
         }
 
-        private int CompareAccountCodes(string a, string b)
+        internal static int CompareAccountCodes(string a, string b)
         {
             if (string.IsNullOrEmpty(a) && string.IsNullOrEmpty(b)) return 0;
             if (string.IsNullOrEmpty(a)) return -1;
@@ -949,9 +949,9 @@ namespace FinancialReport.Services
         // VALUE FORMATTING
         // ─────────────────────────────────────────────────────────────────
 
-        private string FormatFinancialValue(decimal value, RoundingSettings rounding = null)
+        internal static string FormatFinancialValue(decimal value, RoundingSettings rounding = null)
         {
-            rounding = rounding ?? _rounding;
+            rounding = rounding ?? new RoundingSettings();
             decimal scaled = ApplyRounding(value, rounding);
 
             if (scaled == 0m) return "-";
@@ -961,9 +961,9 @@ namespace FinancialReport.Services
             return scaled.ToString(format);
         }
 
-        private decimal ApplyRounding(decimal value, RoundingSettings rounding = null)
+        internal static decimal ApplyRounding(decimal value, RoundingSettings rounding = null)
         {
-            rounding = rounding ?? _rounding;
+            rounding = rounding ?? new RoundingSettings();
 
             switch (rounding.RoundingLevel)
             {
@@ -978,9 +978,9 @@ namespace FinancialReport.Services
             return Math.Round(value, rounding.DecimalPlaces, MidpointRounding.AwayFromZero);
         }
 
-        private string BuildFormatString(RoundingSettings rounding = null)
+        internal static string BuildFormatString(RoundingSettings rounding = null)
         {
-            rounding = rounding ?? _rounding;
+            rounding = rounding ?? new RoundingSettings();
             if (rounding.DecimalPlaces <= 0)
                 return "#,##0";
             return "#,##0." + new string('0', rounding.DecimalPlaces);
