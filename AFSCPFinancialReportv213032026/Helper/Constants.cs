@@ -41,12 +41,6 @@ namespace FinancialReport.Helper
         /// The suffix used for Previous Year placeholders (e.g., "A11101_PY").
         /// </summary>
         public const string PreviousYearSuffix = "PY";
-
-        /// <summary>
-        /// Maximum number of placeholders allowed in a single template.
-        /// Prevents performance issues and potential abuse.
-        /// </summary>
-        public const int MaxPlaceholdersPerTemplate = 1000;
     }
 }
 

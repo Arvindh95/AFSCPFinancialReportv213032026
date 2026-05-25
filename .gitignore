@@ -127,3 +127,6 @@ _tmp_slide_imgs/
 
 # Obsidian workspace config
 Documentation/.obsidian/
+
+# Local dev credentials — never commit (plaintext tenant logins)
+Documentation/05-Credentials/
