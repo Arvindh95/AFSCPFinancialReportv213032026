@@ -146,7 +146,7 @@ The formula is evaluated **twice** — once against the CY dictionary, once agai
 |------|--------|
 | **Case-insensitive lookup** — `{{BS_CASH_CY}}` matches `{{bs_cash_cy}}` and `{{Bs_Cash_Cy}}`. | `WordTemplateService` does case-insensitive Replace at merge time. |
 | **Unmatched placeholders → `0`** — any `{{...}}` token in the template that the engine never produced is silently replaced with `0`. No trace warning is emitted for this. `{{CY}}` / `{{PY}}` are always populated (never blank). | `WordTemplateService.PopulateTemplate` (defaults unknown keys to `"0"`). |
-| **No placeholder-count cap is enforced.** `Constants.MaxPlaceholdersPerTemplate` (1000) and `Messages.TooManyPlaceholders` are defined but **not referenced** anywhere in the generation path — there is currently no runtime limit and `TooManyPlaceholders` is never thrown. | `Helper/Constants.cs:49` (unused). |
+| **No placeholder-count cap.** There is no runtime limit on the number of placeholders in a template — every `{{...}}` token is processed. | `WordTemplateService.PopulateTemplate`. |
 | **Document scope** — placeholders work in the document body, headers, footers, and all table cells. The merge service walks every paragraph. | `WordTemplateService.cs`. |
 | **Type each placeholder in one go in Word** — Word's auto-correct / spell-check sometimes splits `{{` or the underscore mid-typing, breaking the merge token. If a placeholder isn't replacing, retype the whole `{{...}}` token without pausing. | Word behaviour, not a project rule. |
 | **HEADING and invisible lines emit blank placeholders** (empty-string value, not absent) — see [§ 1 — Lines that emit blank placeholders](#lines-that-emit-blank-placeholders). | `ReportCalculationEngine.BuildPlaceholderMap`. |

@@ -256,7 +256,7 @@ Simple maintenance graph. `RowPersisting` requires `CompanyNum` and `TenantName`
 
 ### 6.1 `Constants.cs`
 - `ReportStatus` — the `N/P/C/F` string constants plus BQL `Constant<>` wrappers.
-- `Constants` — `TemplateFileFilter = "FRTemplate"` (substring that identifies an uploaded template file), `CurrentYearSuffix = "CY"`, `PreviousYearSuffix = "PY"`, `MaxPlaceholdersPerTemplate = 1000`.
+- `Constants` — `TemplateFileFilter = "FRTemplate"` (substring that identifies an uploaded template file), `CurrentYearSuffix = "CY"`, `PreviousYearSuffix = "PY"`.
 
 ### 6.2 `Messages.cs`
 `[PXLocalizable]` static class — every user-facing/error string in one place, grouped by area (auth, OData, file, generation, validation, multi-definition, slide). Format-string messages take `{0}`-style args.
@@ -274,8 +274,7 @@ Plain DTO carrying the GI name + all 12 column-name mappings from a definition i
 ### 6.5 `RoundingSettings.cs`
 DTO with `RoundingLevel` + `DecimalPlaces`; `FromDefinition(def)` factory. Consumed by the engine's formatting step.
 
-### 6.6 `TraceLogger.cs` (in `Services/` folder but `Helper` namespace)
-File logger writing to `…\App_Data\Logs\FinancialReports\Overview Trace\`. `Info`/`Error` append timestamped lines. Note: the codebase predominantly uses Acumatica's `PXTrace` instead; `TraceLogger` is a secondary/legacy facility.
+> Diagnostics go through Acumatica's `PXTrace` (visible in the Trace screen / request trace). There is no separate file logger.
 
 ---
 
@@ -323,19 +322,17 @@ The GL-specific data layer. Constructed with an `AuthService`, tenant name, and 
 
 Fetch methods:
 - `FetchAllApiData(branch, org, ledger, period, includeDetail, token)` — point-in-time fetch for one period. Async core streams rows; a `rowConsumer` callback aggregates per account into `FinancialPeriodData` (begin/end/debit/credit) **and**, when `includeDetail`, keeps raw per-row detail (with sub/branch/org/ledger). Returns `FinancialApiData`.
-- `FetchRangeApiData(…fromPeriod, toPeriod…)` — YTD range fetch (`Period ge from and le to`); accumulates debit/credit/ending for the DEBIT/CREDIT/MOVEMENT balance types.
-- `FetchCompositeKeyData`, `FetchEndingBalance` — narrower helpers (composite-key map; single precise balance).
+- `FetchRangeApiData(…fromPeriod, toPeriod…)` — YTD range fetch (`Period ge from and le to`); accumulates debit/credit/ending for the DEBIT/CREDIT/MOVEMENT balance types, and populates `AccountType`/`DetailRows` so YTD sign-flips work.
 - `ValidateGIExists(token)` — **probes the GI with `$top=1` before the parallel fan-out**, so a misconfigured GI name fails fast with a clear message (`GIDataSourceNotFound`) instead of five generic 404s.
 - `FetchGIColumns(giName)` / `TryFetchColumnsFromUrl` — grab one row and return its JSON property names (powers Detect Columns + the column selector).
 
-Fetch plumbing (the resilient core):
-- `ExecuteFetchWithFallbackAsync` / `…StreamWithFallbackAsync` — try **modern URL** (`/odata/{tenant}/{gi}`) then **legacy URL** (`/t/{tenant}/api/odata/gi/{gi}`), always preserving the ledger filter (a past bug that dropped it on retry silently blended ACTUAL with BUDGET ledgers — explicitly fixed). The streaming variant calls `resetConsumer()` before each retry so aggregation state isn't double-counted.
-- `PaginatedFetchAsync` — pages in 10 000-row chunks via `$top`/`$skip` up to a 100 000-row cap; bearer token set **per-request** (`HttpRequestMessage`) so parallel calls never race on shared headers.
-- `PaginatedFetchStreamAsync` — same, but streams JSON with `JsonTextReader` and hands one row at a time to the consumer, keeping peak memory to a single page.
+Fetch plumbing (the resilient core, streaming-only):
+- `ExecuteFetchStreamWithFallbackAsync` — try **modern URL** (`/odata/{tenant}/{gi}`) then **legacy URL** (`/t/{tenant}/api/odata/gi/{gi}`), always preserving the ledger filter (a past bug that dropped it on retry silently blended ACTUAL with BUDGET ledgers — explicitly fixed). Calls `resetConsumer()` before each retry so aggregation state isn't double-counted.
+- `PaginatedFetchStreamAsync` — pages in 10 000-row chunks via `$top`/`$skip` up to a 100 000-row cap, streaming JSON with `JsonTextReader` and handing one row at a time to the consumer (peak memory = a single page); bearer token set **per-request** (`HttpRequestMessage`) so parallel calls never race on shared headers.
 
 DTOs at the bottom of the file:
 - `FinancialPeriodData` — account, subaccount, type, dimension IDs, and the four balances.
-- `FinancialApiData` — `AccountData` (aggregated), `CompositeKeyData`, `DetailRows` (raw).
+- `FinancialApiData` — `AccountData` (aggregated) + `DetailRows` (raw).
 
 ### 8.4 `ReportDataPipeline.cs` — shared setup + period math
 
