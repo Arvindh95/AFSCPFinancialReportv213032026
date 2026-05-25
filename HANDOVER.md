@@ -10,7 +10,7 @@
 An Acumatica ERP 2025 R2 customization (assembly **`FinancialReport.dll`**, namespace `FinancialReport`) that ships **two products on one shared engine**:
 
 - **AFS Financial Report** — a **Word** statement (`.docx`). An accountant defines a statement's structure (which GL accounts roll into which line, sign rules, subtotals, formulas, rounding) on **FR101002 Report Definition**, then **FR101000 AFS Financial Report** pulls trial-balance data over OData, computes every line, and stamps the numbers into a `.docx` template's `{{…}}` placeholders.
-- **MBR — Monthly Board Report** — an **AI-generated PowerPoint** deck (`.pptx`, via the Gamma API). A user defines **MBR Definitions** on **FR101004 (AFS MBR Config)** that pull *any* Generic Inquiry's columns as named values, then **FR101003 (AFS Monthly Board Report)** resolves them (and, optionally, Report Definitions) for the chosen period, builds a structured markdown prompt, and sends it to Gamma to produce the deck.
+- **MBR — Monthly Board Report** — an **AI-generated PowerPoint** deck (`.pptx`, via the Gamma API). A user defines **MBR Definitions** on **FR101004 (AFS MBR Config)** that pull *any* Generic Inquiry's columns as named values, then **FR101003 (AFS Monthly Board Report)** resolves them for the chosen period, builds a structured markdown prompt, and sends it to Gamma to produce the deck.
 
 The defining idea behind both is **config-as-data**: structure lives as *rows in DB tables* edited through maintenance screens, not as code. The customization always authenticates **outbound** to an Acumatica tenant and reads over OData. No recompile is needed when the chart of accounts, report layout, or GI selection changes.
 
@@ -24,11 +24,11 @@ The defining idea behind both is **config-as-data**: structure lives as *rows in
 | Data source | GL Trial-Balance GI (fixed concepts: Account/Ending/Debit/…) | **Any** Generic Inquiry, any columns (generic) |
 | Header DAC | `FLRTFinancialReport` | `FLRTPresentationGeneration` |
 | Definition DAC | `FLRTReportDefinition` + `FLRTReportLineItem` | `FLRTGIDataSource` + `FLRTGIDataSourceColumn` |
-| Fetch service | `FinancialDataService` | `GIDataFetchService` (+ `FinancialDataService` for any linked Report Definitions) |
+| Fetch service | `FinancialDataService` | `GIDataFetchService` |
 | Render service | `WordTemplateService` | `MarkdownBuilderService` → `GammaApiService` |
 | Placeholders | `{{PREFIX_LINECODE_CY/PY}}` | `{{PREFIX_ALIAS}}`, `{{PREFIX_ALIAS_N_GICOL}}` |
 
-> **Code-name ≠ screen-name.** The code predates the "MBR" branding, so the presentation classes keep generic names: `FLRTPresentationGeneration` / `FLRTFinancialPresentationMaint` **is** the MBR report (FR101003), and `FLRTGIDataSource` / `FLRTGIDataSourceMaint` **is** the MBR Definition / *AFS MBR Config* (FR101004). MBR can link **both** MBR Definitions (GI data) and Report Definitions (trial-balance data) on one deck.
+> **Code-name ≠ screen-name.** The code predates the "MBR" branding, so the presentation classes keep generic names: `FLRTPresentationGeneration` / `FLRTFinancialPresentationMaint` **is** the MBR report (FR101003), and `FLRTGIDataSource` / `FLRTGIDataSourceMaint` **is** the MBR Definition / *AFS MBR Config* (FR101004). An MBR deck's markdown is built **only from MBR Definitions** (GI data sources). The `FLRTPresentationDefinitionLink` table can also link Report Definitions, but that path is **legacy / database-only** — it is not wired into the FR101003 UI or the live generation flow.
 
 ### Data flow — AFS Financial Report (Word)
 
@@ -54,15 +54,12 @@ FR101002 define ─► FR101000 generate ─► .docx     (PXLongOperation, 15-m
 ```
 FR101004 define ─► FR101003 generate ─► .pptx     (PXLongOperation, 15-min cap)
 
-  ReportDataPipeline.BuildContext   → linked definitions + FY periods
+  ReportDataPipeline.BuildContext   → linked MBR Definitions + FY periods
         │
   AuthService ──OAuth──► tenant
         │
-  ├─ MBR Definitions (GI Data Sources) ─► GIDataFetchService.FetchAndAggregate
-  │        ──OData──► any GI → {{PREFIX_ALIAS}} / {{PREFIX_ALIAS_N_GICOL}}
-  │
-  └─ (optional) Report Definitions ─► FinancialDataService
-           → ReportCalculationEngine.CalculateAll → {{PREFIX_LINECODE_CY/PY}}
+  GIDataFetchService.FetchAndAggregate   (per MBR Definition)
+        │     ──OData──► any GI → {{PREFIX_ALIAS}} / {{PREFIX_ALIAS_N_GICOL}}
         │
   MarkdownBuilderService.Build   → structured markdown prompt (title, context, data)
         │
@@ -109,7 +106,7 @@ The `Pages/FR/*.aspx.cs` files are **empty `PXPage` stubs** — all UI binding i
 | FR101004 | AFS MBR Config (MBR Definition) | MBR | `FLRTGIDataSourceMaint` | `FLRTGIDataSource` |
 | FR101003 | AFS Monthly Board Report (MBR) | MBR | `FLRTFinancialPresentationMaint` | `FLRTPresentationGeneration` |
 
-FR101001 feeds both products (outbound OAuth + Gamma key). FR101002/FR101000 are the **AFS** Word path; FR101004/FR101003 are the **MBR** presentation path — though an MBR deck may also link FR101002 Report Definitions to mix trial-balance numbers into the slides.
+FR101001 feeds both products (outbound OAuth + Gamma key). FR101002/FR101000 are the **AFS** Word path; FR101004/FR101003 are the **MBR** presentation path — the MBR deck draws its data only from MBR Definitions (FR101004).
 
 ---
 
@@ -233,7 +230,7 @@ The header behind **FR101003 (AFS Monthly Board Report)** — one row = one MBR 
 | `SlideGeneratedFileID` | GUID of the produced `.pptx`. |
 
 ### 4.8 `FLRTPresentationDefinitionLink` & `FLRTPresentationDataSourceLink`
-Children of `FLRTPresentationGeneration`. The former links Report Definitions (trial-balance data); the latter links GI Data Sources (generic data). Both carry a display-only prefix and `DisplayOrder`. The data-source-link selector restricts to `IsActive = true`.
+Children of `FLRTPresentationGeneration`. `FLRTPresentationDataSourceLink` links **MBR Definitions** (GI data sources) — this is the live MBR path; its selector restricts to `IsActive = true`. `FLRTPresentationDefinitionLink` links Report Definitions (trial-balance data), but that path is **legacy / database-only** — not exposed on FR101003, so a normal MBR deck draws only from data-source links. Both carry a display-only prefix and `DisplayOrder`.
 
 ### 4.9 `FLRTTenantCredentials` — per-tenant secrets
 Keyed by `CompanyNum`. This is how the customization authenticates *outbound* to the target tenant's OData/REST endpoints and to Gamma. The encrypted fields auto-decrypt on read.
@@ -345,7 +342,7 @@ Static helper removing duplication between the report and slide paths.
 |--------|--------------|
 | `Context` | Bundles definition links, definitions-with-line-items, column mapping, and all period strings from §6. |
 | `BuildContext(graph, FLRTFinancialReport)` | Loads `FLRTReportDefinitionLink` rows (join to definitions), or falls back to the legacy single `DefinitionID`; builds `ReportCalculationEngine.DefinitionLink` objects (id + prefix + rounding); loads each definition's line items; computes periods. A parallel overload takes `FLRTPresentationGeneration` and reads `FLRTPresentationDefinitionLink`. |
-| `FetchAndCalculate(ctx, …)` | The **simple** pipeline used by slides: fires five parallel fetches (CY, PY, Prior point-in-time + CY/PY YTD ranges), waits, then runs `ReportCalculationEngine.CalculateAll`. (The report path does its own conditional fetch instead — see §7.5.) |
+| `FetchAndCalculate(ctx, …)` | The **simple** pipeline for the legacy/DB-only slide Report-Definition branch (§7.10 step 3): fires five parallel fetches (CY, PY, Prior point-in-time + CY/PY YTD ranges), waits, then runs `ReportCalculationEngine.CalculateAll`. Not used by the live MBR path or the Word path (which does its own conditional fetch — see §7.5). |
 
 ### 7.5 `ReportGenerationService.cs` — Word orchestration
 `Execute(token)` is the end-to-end Word flow:
@@ -447,8 +444,8 @@ Calls `public-api.gamma.app/v1.0`. `GammaGenerationOptions` carries defaults (12
 |------|--------|
 | 1 | `ReportDataPipeline.BuildContext` for the presentation record. |
 | 2 | Load `FLRTPresentationDataSourceLink` rows. Require at least one definition or one data source. |
-| 3 | If definitions exist: validate visible lines have descriptions (`VisibleLineItemsMissingDescriptions`), then `ReportDataPipeline.FetchAndCalculate` for the trial-balance numbers. |
-| 4 | If data sources exist: for each active one, load its columns and call `GIDataFetchService.FetchAndAggregate`, merging results. |
+| 3 | **(legacy / DB-only — see §4.8)** If Report Definitions are linked: validate visible lines have descriptions (`VisibleLineItemsMissingDescriptions`), then `ReportDataPipeline.FetchAndCalculate` for the trial-balance numbers. The FR101003 UI does not link Report Definitions, so this branch is dormant in normal use. |
+| 4 | For each active MBR Definition (data source): load its columns and call `GIDataFetchService.FetchAndAggregate`, merging results. **This is the live MBR path.** |
 | 5 | `MarkdownBuilderService.Build(...)` → expose on `LastGeneratedMarkdown` (the graph persists it / hands it to Gamma). |
 
 ### 7.11 `WordTemplateService.cs` — docx placeholder fill
@@ -503,7 +500,7 @@ Helpers (public, reused by the service):
 | `MapCompanyIDToTenantName(companyID)` | Looks up `FLRTTenantCredentials.TenantName` by `CompanyNum`. |
 
 ### 8.2 `FLRTFinancialPresentationMaint` — MBR screen (FR101003, *AFS Monthly Board Report*)
-**Views:** `PresentationRecord` (primary), `DefinitionLinks`, `DataSourceLinks`.
+**Views:** `PresentationRecord` (primary), `DataSourceLinks` (the live MBR-Definition links), and `DefinitionLinks` (the legacy/DB-only Report-Definition links — present in the graph but not surfaced on the FR101003 form; see §4.8).
 **Events:** prefix-display `FieldSelecting` for both link types; duplicate-prefix validation on definition links; `RowSelected` toggles field/button enable on InProgress and only enables Download when a file exists.
 
 Actions:
@@ -562,14 +559,14 @@ Simple maintenance graph. `RowPersisting` requires `CompanyNum` + `TenantName` a
 
 Prerequisite setup happens on **FR101004 (AFS MBR Config)**: create one or more **MBR Definitions**, each bound to a GI; run **Detect Columns** (captures live OData column names) and **Test Fetch** (verifies the resolved `{{PREFIX_ALIAS}} = value` pairs against a chosen period) before relying on it.
 
-1. User opens **FR101003 (AFS Monthly Board Report)**, sets a **Presentation Title**/description and Year/Month/Branch/Org/Ledger, links one or more **MBR Definitions** (GI data sources) and/or **Report Definitions** (trial-balance data), optionally sets a **Gamma Template Id**, and clicks **Preview Markdown** or **Generate Presentation**.
-2. The graph validates (title present, **Gamma API key** configured on FR101001, ≥1 linked definition/data source), resolves tenant + credentials, marks the row InProgress, starts a 15-min background long-operation.
-3. `SlideGenerationService.BuildMarkdownPreview`: `ReportDataPipeline.BuildContext` for the record; if Report Definitions are linked, validate visible lines have descriptions and `FetchAndCalculate` the trial-balance numbers; for each active MBR Definition, `GIDataFetchService.FetchAndAggregate` resolves its columns (VALUE/MULTIROW/CALCULATED, key+row filters, aggregation) into placeholders.
+1. User opens **FR101003 (AFS Monthly Board Report)**, sets a **Presentation Title**/description and Year/Month/Branch/Org/Ledger, links one or more **MBR Definitions** (GI data sources), optionally sets a **Gamma Template Id**, and clicks **Preview Markdown** or **Generate Presentation**.
+2. The graph validates (title present, **Gamma API key** configured on FR101001, ≥1 linked MBR Definition), resolves tenant + credentials, marks the row InProgress, starts a 15-min background long-operation.
+3. `SlideGenerationService.BuildMarkdownPreview`: `ReportDataPipeline.BuildContext` for the record; for each active MBR Definition, `GIDataFetchService.FetchAndAggregate` resolves its columns (VALUE/MULTIROW/CALCULATED, key+row filters, aggregation) into placeholders. (The service also contains a legacy/DB-only Report-Definition branch — see §4.8 — that the FR101003 UI does not use.)
 4. `MarkdownBuilderService.Build`: assemble the title, **Report Context**, the CFO-presentation instruction block, the **Data** section (TB line items + GI-data-source bullets, MULTIROW rows expanded), and a footer. **Preview Markdown** stops here and stores the prompt on `PresentationMarkdown` so the user can inspect it before spending a Gamma call.
 5. **Generate Presentation**: reuse the stored markdown if present, else build it; call `GammaApiService` — `GeneratePresentationFromTemplate` if a `GammaTemplateId` is set, else `GeneratePresentation` — which submits to `public-api.gamma.app`, polls up to 5 min, and downloads the `.pptx` from the pre-signed export URL.
 6. `FileService.SaveGeneratedDocument` stores the deck; the row flips to Completed with a `SlideGeneratedFileID`; **Download Presentation** streams it.
 
-The two paths **share** auth, the period/context build, the calculation engine (for any linked Report Definitions), and file storage; they **differ** in the data source (Trial-Balance GI vs any GI) and the render step (`WordTemplateService` → `.docx` vs `MarkdownBuilderService` + `GammaApiService` → `.pptx`).
+The two paths **share** auth, the period/context build, and file storage; they **differ** in the data source + engine (AFS: Trial-Balance GI → `FinancialDataService` → `ReportCalculationEngine`; MBR: any GI → `GIDataFetchService`) and the render step (`WordTemplateService` → `.docx` vs `MarkdownBuilderService` + `GammaApiService` → `.pptx`).
 
 ---
 
