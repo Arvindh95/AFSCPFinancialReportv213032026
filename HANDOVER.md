@@ -48,7 +48,7 @@ AFSCPFinancialReportv213032026/                 ← repo root (this folder)
 │   └── Properties/ AssemblyInfo
 ├── Pages/FR/       FR101000–FR101004 .aspx (+ empty .aspx.cs stubs)
 ├── _project/       Acumatica customization package (SQL, sitemap, screen rights, GI defs)
-├── _scripts/       script.sql (schema script used by the package)
+├── _scripts/       Script.sql (idempotent schema script — full table set)
 ├── Documentation/  user guides + reference (incl. CodeWalkthrough.md)
 ├── _dev/Solution.bat
 └── HANDOVER.md     ← you are here
@@ -114,13 +114,13 @@ Add `--env tenant=<Tenant>` for a tenant-scoped build. Adding a DAC field that m
 | GI / sitemap / rights | ❌ | ✅ | ❌ |
 | Modern UI HTML/TS | ❌ | ❌ | ✅ |
 
-> A new DAC field that needs a DB column + UI + server logic touches **all three**: edit DAC `.cs`, add the column to `script.sql` / `_project/Sql_AFSTables.xml`, add the ASPX selector, then `dotnet build` **and** Publish CP.
+> A new DAC field that needs a DB column + UI + server logic touches **all three**: edit DAC `.cs`, add the column to `_scripts/Script.sql` / `_project/Sql_AFSTables.xml`, add the ASPX selector, then `dotnet build` **and** Publish CP.
 
 ---
 
 ## 5. Database schema
 
-10 tables, all prefixed `FLRT`, created/migrated by the idempotent script `_project/Sql_FullProject_Idempotent.sql` (safe on fresh, old, or current DBs).
+10 tables, all prefixed `FLRT`, created/migrated by the idempotent script `_scripts/Script.sql` (safe on fresh, old, or current DBs). The Customization Project deploys the same schema via `_project/Sql_AFSTables.xml`.
 
 | Table | Role |
 |-------|------|
@@ -135,12 +135,9 @@ Add `--env tenant=<Tenant>` for a tenant-scoped build. Adding a DAC field that m
 | `FLRTGIDataSource` | Generic (any-GI) data source config |
 | `FLRTGIDataSourceColumn` | Output columns of a GI data source |
 
-**Migration scripts** (run once each; idempotent):
-- `Sql_Migration_DecouplePresentation.sql` — splits presentation fields out of `FLRTFinancialReport` into `FLRTPresentationGeneration` (the project moved from one combined screen to separate Report and Presentation screens).
-- `Sql_Migration_GIDataSource.sql` — adds the GI Data Source feature tables.
-- `Sql_FullProject_CreateAll.sql` — non-idempotent full create (fresh DB only). Prefer the idempotent one.
+`Script.sql` is the single source of truth — it creates every table and folds in all historical migrations (presentation decoupling, GI Data Source tables, column-type corrections, PK rebuild). Run it against any DB state. The older standalone migration and create-all scripts have been removed; `Script.sql` supersedes them.
 
-> History matters here: the **legacy single `DefinitionID`** on `FLRTFinancialReport` was replaced by the link table, and presentations were decoupled from reports. New code uses the link tables; the legacy field is kept only for old rows.
+> History matters here: the **legacy single `DefinitionID`** on `FLRTFinancialReport` was replaced by the link table, and presentations were decoupled from reports. New code uses the link tables; the legacy field is kept only for old rows. `Script.sql` handles both fresh and legacy databases.
 
 ---
 
@@ -274,7 +271,7 @@ The last work cycle (`fix-review-findings-22052026`) closed a batch of correctne
 - **Test cases:** `Documentation/04-testing/`
 - **Credentials guide:** `Documentation/05-Credentials/`
 - **User manual:** `Documentation/AFSCPFinancialReport_UserManual.md` (+ `.docx`)
-- **Schema scripts:** `_project/Sql_*.sql`, `_scripts/script.sql`
+- **Schema script:** `_scripts/Script.sql` (CP deploys via `_project/Sql_AFSTables.xml`)
 
 ---
 
