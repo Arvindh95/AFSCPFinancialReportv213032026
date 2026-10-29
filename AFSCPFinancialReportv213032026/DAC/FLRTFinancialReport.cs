@@ -23,7 +23,14 @@ namespace FinancialReport
 
     #region ReportID
     [PXDBIdentity(IsKey = true)]
-    [PXUIField(DisplayName = "Report ID", Visible = false)]
+    // Visible = true so the field is exposed in metadata and can be MAPPED onto the
+    // web-service endpoint (SM207060). With Visible = false it is filtered out of both
+    // the Populate picker and the manual Mapped Field dropdown, so the contract entity
+    // ends up with NO key — and without a key every REST action invoke INSERTS a new
+    // record instead of targeting the intended one (measured: generateReport created a
+    // blank duplicate on every call). The form layout does not place this field, so
+    // making it visible does not change the FR101000 UI.
+    [PXUIField(DisplayName = "Report ID", Visible = true)]
     public virtual int? ReportID { get; set; }
     public abstract class reportID : PX.Data.BQL.BqlInt.Field<reportID> { }
     #endregion
